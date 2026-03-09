@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sticker Calc Pro - Green Edition</title>
+    <style>
+        body { font-family: 'Courier New', monospace; padding: 20px; background: #f0f2f5; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 550px; margin: auto; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
+        input, select { padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .btn-container { display: flex; gap: 10px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .calc-btn { background: #28a745; color: white; }
+        .print-btn { background: #007bff; color: white; }
+        button:hover { opacity: 0.9; }
+        
+        #output { 
+            margin-top: 20px; 
+            white-space: pre; 
+            background: #1a1a1a; 
+            color: #00FF00;      
+            padding: 20px; 
+            border-radius: 8px; 
+            line-height: 1.3;
+            font-size: 14px;
+            border: 2px solid #333;
+        }
+        
+        .stat-label { font-weight: bold; color: #55ff55; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .card { box-shadow: none; border: none; max-width: 100%; }
+            .input-group, .btn-container, h2 { display: none; }
+            #output { 
+                background: white; 
+                color: black; 
+                border: none; 
+                padding: 0;
+            }
+            .stat-label { color: black; font-weight: bold; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Sticker Calculator</h2>
+        <div class="input-group">
+            <label>Keyword</label>
+            <select id="keyword">
+                <option value="diecut">Diecut (30x30 or 30x50)</option>
+                <option value="sheet">Sheet (Always 30x30)</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>Width x Height (cm)</label>
+            <div style="display:flex; gap:5px;">
+                <input type="number" id="w" placeholder="W" step="0.1">
+                <input type="number" id="h" placeholder="H" step="0.1">
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Total Quantity</label>
+            <input type="number" id="qty" placeholder="e.g. 100">
+        </div>
+        <div class="btn-container">
+            <button class="calc-btn" onclick="calculate()">Calculate</button>
+            <button class="print-btn" onclick="window.print()">Print Result</button>
+        </div>
+        <div id="output-container">
+            <div id="output">Results will appear here...</div>
+        </div>
+    </div>
+
+    <script>
+        function getBestLayout(sw, sh, stickerW, stickerH) {
+            let opt1_cols = Math.floor(sw / stickerW);
+            let opt1_rows = Math.floor(sh / stickerH);
+            let opt1_total = opt1_cols * opt1_rows;
+
+            let opt2_cols = Math.floor(sw / stickerH);
+            let opt2_rows = Math.floor(sh / stickerW);
+            let opt2_total = opt2_cols * opt2_rows;
+
+            return (opt2_total > opt1_total) 
+                ? { cols: opt2_cols, rows: opt2_rows, perSheet: opt2_total }
+                : { cols: opt1_cols, rows: opt1_rows, perSheet: opt1_total };
+        }
+
+        function drawMap(cols, rows, totalStickers) {
+            // Border width is (stickers * 2) + 2 for the side bars
+            let borderWidth = (cols * 2) + 2; 
+            let padding = "       ";
+            let map = "";
+            let stickersDrawn = 0;
+
+            // Calculate actual rows used (rows that have at least one sticker)
+            let actualRowsUsed = Math.ceil(totalStickers / cols);
+
+            // Top Border (using underscores)
+            map += padding + " " + "_".repeat(borderWidth - 2) + "\n";
+            
+            for(let i=0; i<rows; i++) {
+                // Label logic: only show the label on the middle of the USED rows
+                let rowLabel = padding;
+                if (i === Math.floor(actualRowsUsed / 2)) {
+                    rowLabel = `(${actualRowsUsed})`.padEnd(7);
+                }
+
+                let rowContent = "";
+                for(let j=0; j<cols; j++) {
+                    if (stickersDrawn < totalStickers) {
+                        rowContent += "[]";
+                        stickersDrawn++;
+                    } else {
+                        rowContent += "  ";
+                    }
+                }
+                map += `${rowLabel}|${rowContent}|\n`;
+            }
+            
+            // Bottom Border (using dashes)
+            map += padding + " " + "-".repeat(borderWidth - 2);
+            return map;
+        }
+
+        function calculate() {
+            let inW = parseFloat(document.getElementById('w').value);
+            let inH = parseFloat(document.getElementById('h').value);
+            let qty = parseInt(document.getElementById('qty').value);
+            let keyword = document.getElementById('keyword').value;
+            
+            if(!inW || !inH || !qty) { alert("Fill all fields!"); return; }
+
+            let sW = inW + 0.6;
+            let sH = inH + 0.6;
+            let finalSH = 30;
+
+            if (keyword === "diecut") {
+                let test30 = getBestLayout(30, 30, sW, sH);
+                finalSH = (qty % test30.perSheet === 0 && test30.perSheet > 0) ? 30 : 50;
+            }
+
+            let layout = getBestLayout(30, finalSH, sW, sH);
+            let numSheets = Math.floor(qty / layout.perSheet);
+            let rem = qty % layout.perSheet;
+
+            // Generate Main Map
+            let borderWidth = (layout.cols * 2) + 2;
+            let colLabel = `(${layout.cols})`.padStart(Math.floor(borderWidth / 2) + 7);
+            let mainMap = colLabel + "\n" + drawMap(layout.cols, layout.rows, layout.perSheet);
+
+            // Generate Remainder Map
+            let remSection = "";
+            if (rem > 0) {
+                remSection = `\n\n<span class="stat-label">Remainder Map (${rem} stickers):</span>\n` + colLabel + "\n" + drawMap(layout.cols, layout.rows, rem);
+            }
+
+            let resultHTML = `Sticker Details: ${keyword.toUpperCase()}, ${inW}x${inH}, Qty: ${qty}\n` +
+                `--------------------------------------\n` +
+                `<span class="stat-label">Sheet Size:</span> 30x${finalSH}cm\n` +
+                `<span class="stat-label">Stickers per sheet:</span> ${layout.perSheet}\n` +
+                `<span class="stat-label">Number of sheets:</span> ${numSheets}\n` +
+                `<span class="stat-label">Remainder:</span> ${rem}\n\n` +
+                `<span class="stat-label">Main Sheet Map:</span>\n${mainMap}` + remSection;
+
+            document.getElementById('output').innerHTML = resultHTML;
+        }
+    </script>
+</body>
+</html>
