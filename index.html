@@ -11,9 +11,8 @@
         .btn-container { display: flex; gap: 10px; }
         button { flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         .calc-btn { background: #28a745; color: white; }
-        .print-btn { background: #007bff; color: white; }
         button:hover { opacity: 0.9; }
-       
+      
         #output {
             margin-top: 20px;
             white-space: pre;
@@ -25,7 +24,7 @@
             font-size: 14px;
             border: 2px solid #333;
         }
-       
+      
         .stat-label { font-weight: bold; color: #55ff55; }
         @media print {
             body { background: white; padding: 0; }
@@ -44,7 +43,7 @@
 <body>
     <div class="card">
         <h2>Sticker Calculator</h2>
-        
+       
         <div class="input-group">
             <label>Keyword</label>
             <select id="keyword" onchange="toggleCustomArtboard()">
@@ -53,7 +52,6 @@
                 <option value="custom">Custom Sticker</option>
             </select>
         </div>
-
         <div class="input-group" id="custom-artboard" style="display: none;">
             <label>Custom Artboard Width x Height (cm)</label>
             <div style="display:flex; gap:5px;">
@@ -61,7 +59,6 @@
                 <input type="number" id="artH" placeholder="Art H" step="0.1">
             </div>
         </div>
-
         <div class="input-group">
             <label>Width x Height (cm)</label>
             <div style="display:flex; gap:5px;">
@@ -69,29 +66,26 @@
                 <input type="number" id="h" placeholder="H" step="0.1">
             </div>
         </div>
-        
+       
         <div class="input-group">
             <label>Total Quantity</label>
             <input type="number" id="qty" placeholder="e.g. 100">
         </div>
-        
+       
         <div class="btn-container">
             <button class="calc-btn" onclick="calculate()">Calculate</button>
-            <button class="print-btn" onclick="window.print()">Print Result</button>
         </div>
-        
+       
         <div id="output-container">
             <div id="output">Results will appear here...</div>
         </div>
     </div>
-
     <script>
         function toggleCustomArtboard() {
             const keyword = document.getElementById('keyword').value;
             const customDiv = document.getElementById('custom-artboard');
             customDiv.style.display = (keyword === 'custom') ? 'block' : 'none';
         }
-
         function getBestLayout(sw, sh, stickerW, stickerH) {
             let opt1_cols = Math.floor(sw / stickerW);
             let opt1_rows = Math.floor(sh / stickerH);
@@ -103,53 +97,50 @@
                 ? { cols: opt2_cols, rows: opt2_rows, perSheet: opt2_total }
                 : { cols: opt1_cols, rows: opt1_rows, perSheet: opt1_total };
         }
-
         function drawMap(cols, rows, totalStickers) {
             const LABEL_WIDTH = 7;
             const borderWidth = (cols * 2) + 2;
             let map = "";
             let stickersDrawn = 0;
             let actualRowsUsed = Math.ceil(totalStickers / cols);
-            
+           
             // Top border
             map += " ".repeat(LABEL_WIDTH) + "_".repeat(borderWidth) + "\n";
-           
-            for(let i = 0; i < rows; i++) {
+          
+            // Only draw the rows actually used (tight map for remainder)
+            for(let i = 0; i < actualRowsUsed; i++) {
                 let rowPrefix = (i === Math.floor(actualRowsUsed / 2))
                     ? `(${actualRowsUsed})`.padEnd(LABEL_WIDTH)
                     : " ".repeat(LABEL_WIDTH);
-                
+               
                 let rowContent = "";
                 for(let j = 0; j < cols; j++) {
                     if (stickersDrawn < totalStickers) {
                         rowContent += "[]";
                         stickersDrawn++;
                     } else {
-                        rowContent += "  ";
+                        rowContent += "  ";   // TWO spaces to keep perfect alignment with "[]"
                     }
                 }
                 map += rowPrefix + "|" + rowContent + "|\n";
             }
-           
+          
             // Bottom border
             map += " ".repeat(LABEL_WIDTH) + "-".repeat(borderWidth);
             return map;
         }
-
         function calculate() {
             let inW = parseFloat(document.getElementById('w').value);
             let inH = parseFloat(document.getElementById('h').value);
             let qty = parseInt(document.getElementById('qty').value);
             let keyword = document.getElementById('keyword').value;
-           
+          
             if (!inW || !inH || !qty) {
                 alert("Please fill Sticker Width, Height and Total Quantity!");
                 return;
             }
-
             let sW = inW + 0.6;
             let sH = inH + 0.6;
-
             let sw, sh, sheetSizeDisplay;
             if (keyword === "custom") {
                 let artW = parseFloat(document.getElementById('artW').value);
@@ -171,25 +162,25 @@
                 sh = finalSH;
                 sheetSizeDisplay = `30x${finalSH}`;
             }
-
             let layout = getBestLayout(sw, sh, sW, sH);
             let numSheets = Math.floor(qty / layout.perSheet);
             let rem = qty % layout.perSheet;
-
             const LABEL_WIDTH = 7;
             let borderWidth = (layout.cols * 2) + 2;
             let colLabelText = `(${layout.cols})`;
             let half = Math.floor((borderWidth - colLabelText.length) / 2);
             let colLabel = " ".repeat(LABEL_WIDTH + half) + colLabelText;
 
-            // Main Map with extra blank line after the title
+            let mainRowsUsed = Math.ceil(layout.perSheet / layout.cols); // always = layout.rows for main
             let mainMap = colLabel + "\n" + drawMap(layout.cols, layout.rows, layout.perSheet);
 
             let remSection = "";
             if (rem > 0) {
                 const plural = rem === 1 ? "sticker" : "stickers";
-                remSection = `\n\n<span class="stat-label">Remainder Map (${rem} ${plural}):</span>\n\n` + 
-                            colLabel + "\n" + drawMap(layout.cols, layout.rows, rem);
+                let remRowsUsed = Math.ceil(rem / layout.cols);
+                let remMap = colLabel + "\n" + drawMap(layout.cols, layout.rows, rem);
+                remSection = `\n\n<span class="stat-label">Remainder Sheet Map (${rem} ${plural}):</span>\n\n` +
+                            `${remMap}\n\nRow: ${remRowsUsed}   Column: ${layout.cols}`;
             }
 
             let resultHTML = `Sticker Details: ${keyword.toUpperCase()}, ${inW}x${inH}, Qty: ${qty}\n` +
@@ -198,11 +189,9 @@
                 `<span class="stat-label">Stickers per sheet:</span> ${layout.perSheet}\n` +
                 `<span class="stat-label">Number of sheets:</span> ${numSheets}\n` +
                 `<span class="stat-label">Remainder:</span> ${rem}\n\n` +
-                `<span class="stat-label">Main Sheet Map:</span>\n\n${mainMap}` + remSection;
-
+                `<span class="stat-label">Main Sheet Map:</span>\n\n${mainMap}\n\nRow: ${mainRowsUsed}   Column: ${layout.cols}` + remSection;
             document.getElementById('output').innerHTML = resultHTML;
         }
-
         window.onload = function() {
             toggleCustomArtboard();
         };
