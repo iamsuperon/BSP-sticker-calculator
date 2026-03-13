@@ -1,200 +1,193 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Sticker Calc Pro - Green Edition</title>
+    <meta charset="UTF-8">
+    <title>Sticker Calc Pro - Flexible Edition</title>
     <style>
-        body { font-family: 'Courier New', monospace; padding: 20px; background: #f0f2f5; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 550px; margin: auto; }
+        body { font-family: 'Courier New', monospace; padding: 20px; background: #f0f2f5; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 600px; margin: auto; }
+        h2 { margin-top: 0; color: #28a745; border-bottom: 2px solid #eee; padding-bottom: 10px; }
         .input-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9em; }
-        input, select { padding: 10px; width: 100%; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        .btn-container { display: flex; gap: 10px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.85em; text-transform: uppercase; color: #666; }
+        input, select { padding: 12px; width: 100%; border: 2px solid #dfe3e8; border-radius: 8px; box-sizing: border-box; font-size: 16px; outline: none; transition: border-color 0.2s; }
+        input:focus { border-color: #28a745; }
+        .btn-container { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }
         .calc-btn { background: #28a745; color: white; }
-        button:hover { opacity: 0.9; }
-      
+        .copy-btn { background: #6c757d; color: white; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        
         #output {
-            margin-top: 20px;
+            margin-top: 25px;
             white-space: pre;
             background: #1a1a1a;
             color: #00FF00;
             padding: 20px;
             border-radius: 8px;
-            line-height: 1.3;
-            font-size: 14px;
+            line-height: 1.4;
+            font-size: 13px;
             border: 2px solid #333;
+            overflow-x: auto;
         }
-      
         .stat-label { font-weight: bold; color: #55ff55; }
-        @media print {
-            body { background: white; padding: 0; }
-            .card { box-shadow: none; border: none; max-width: 100%; }
-            .input-group, .btn-container, h2 { display: none; }
-            #output {
-                background: white;
-                color: black;
-                border: none;
-                padding: 0;
-            }
-            .stat-label { color: black; font-weight: bold; }
-        }
+        .highlight { color: #fff; background: #28a745; padding: 2px 5px; border-radius: 3px; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>Sticker Calculator</h2>
-       
-        <div class="input-group">
-            <label>Keyword</label>
-            <select id="keyword" onchange="toggleCustomArtboard()">
-                <option value="diecut">Diecut (30x30 or 30x50)</option>
-                <option value="sheet">Sheet (Always 30x30)</option>
-                <option value="custom">Custom Sticker</option>
-            </select>
-        </div>
-        <div class="input-group" id="custom-artboard" style="display: none;">
-            <label>Custom Artboard Width x Height (cm)</label>
-            <div style="display:flex; gap:5px;">
-                <input type="number" id="artW" placeholder="Art W" step="0.1">
-                <input type="number" id="artH" placeholder="Art H" step="0.1">
-            </div>
-        </div>
-        <div class="input-group">
-            <label>Width x Height (cm)</label>
-            <div style="display:flex; gap:5px;">
-                <input type="number" id="w" placeholder="W" step="0.1">
-                <input type="number" id="h" placeholder="H" step="0.1">
-            </div>
-        </div>
-       
-        <div class="input-group">
-            <label>Total Quantity</label>
-            <input type="number" id="qty" placeholder="e.g. 100">
-        </div>
-       
-        <div class="btn-container">
-            <button class="calc-btn" onclick="calculate()">Calculate</button>
-        </div>
-       
-        <div id="output-container">
-            <div id="output">Results will appear here...</div>
+
+<div class="card">
+    <h2>Sticker Calculator (Flex)</h2>
+    
+    <div class="input-group">
+        <label>Job Type</label>
+        <select id="keyword" onchange="toggleCustomArtboard()">
+            <option value="diecut">Diecut (Smart Artboard Selection)</option>
+            <option value="sheet">Sheet (Always 30x30)</option>
+            <option value="custom">Custom Artboard</option>
+        </select>
+    </div>
+
+    <div class="input-group" id="custom-artboard-dims" style="display: none;">
+        <label>Artboard Width x Height (cm)</label>
+        <div style="display:flex; gap:5px;">
+            <input type="number" id="artW" placeholder="Art W" step="0.1">
+            <input type="number" id="artH" placeholder="Art H" step="0.1">
         </div>
     </div>
-    <script>
-        function toggleCustomArtboard() {
-            const keyword = document.getElementById('keyword').value;
-            const customDiv = document.getElementById('custom-artboard');
-            customDiv.style.display = (keyword === 'custom') ? 'block' : 'none';
-        }
-        function getBestLayout(sw, sh, stickerW, stickerH) {
-            let opt1_cols = Math.floor(sw / stickerW);
-            let opt1_rows = Math.floor(sh / stickerH);
-            let opt1_total = opt1_cols * opt1_rows;
-            let opt2_cols = Math.floor(sw / stickerH);
-            let opt2_rows = Math.floor(sh / stickerW);
-            let opt2_total = opt2_cols * opt2_rows;
-            return (opt2_total > opt1_total)
-                ? { cols: opt2_cols, rows: opt2_rows, perSheet: opt2_total }
-                : { cols: opt1_cols, rows: opt1_rows, perSheet: opt1_total };
-        }
-        function drawMap(cols, rows, totalStickers) {
-            const LABEL_WIDTH = 7;
-            const borderWidth = (cols * 2) + 2;
-            let map = "";
-            let stickersDrawn = 0;
-            let actualRowsUsed = Math.ceil(totalStickers / cols);
-           
-            // Top border
-            map += " ".repeat(LABEL_WIDTH) + "_".repeat(borderWidth) + "\n";
-          
-            // Only draw the rows actually used (tight map for remainder)
-            for(let i = 0; i < actualRowsUsed; i++) {
-                let rowPrefix = (i === Math.floor(actualRowsUsed / 2))
-                    ? `(${actualRowsUsed})`.padEnd(LABEL_WIDTH)
-                    : " ".repeat(LABEL_WIDTH);
-               
-                let rowContent = "";
-                for(let j = 0; j < cols; j++) {
-                    if (stickersDrawn < totalStickers) {
-                        rowContent += "[]";
-                        stickersDrawn++;
-                    } else {
-                        rowContent += "  ";   // TWO spaces to keep perfect alignment with "[]"
-                    }
-                }
-                map += rowPrefix + "|" + rowContent + "|\n";
+
+    <div class="input-group">
+        <label>Sticker Width x Height (cm)</label>
+        <div style="display:flex; gap:5px;">
+            <input type="number" id="w" placeholder="W" step="0.1">
+            <input type="number" id="h" placeholder="H" step="0.1">
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label>Cutting Margin / Gap (cm) -  Default is 0.6cm</label>
+        <input type="number" id="margin" value="0.6" step="0.1" placeholder="Standard 0.6">
+    </div>
+    
+    <div class="input-group">
+        <label>Total Quantity Needed</label>
+        <input type="number" id="qty" placeholder="e.g. 100">
+    </div>
+    
+    <div class="btn-container">
+        <button class="calc-btn" onclick="calculate()">Calculate Best Fit</button>
+        <button class="copy-btn" onclick="copyToClipboard()">Copy Result</button>
+    </div>
+    
+    <div id="output">Enter details and click Calculate...</div>
+</div>
+
+<script>
+    function toggleCustomArtboard() {
+        const keyword = document.getElementById('keyword').value;
+        document.getElementById('custom-artboard-dims').style.display = (keyword === 'custom') ? 'block' : 'none';
+    }
+
+    function getLayout(sw, sh, stickerW, stickerH) {
+        let cols1 = Math.floor(sw / stickerW);
+        let rows1 = Math.floor(sh / stickerH);
+        let total1 = cols1 * rows1;
+
+        let cols2 = Math.floor(sw / stickerH);
+        let rows2 = Math.floor(sh / stickerW);
+        let total2 = cols2 * rows2;
+
+        return (total2 > total1) 
+            ? { cols: cols2, rows: rows2, perSheet: total2 }
+            : { cols: cols1, rows: rows1, perSheet: total1 };
+    }
+
+    function drawMap(cols, totalStickers) {
+        if (cols <= 0) return "";
+        let map = "       " + "_".repeat(cols * 2 + 2) + "\n";
+        let stickersDrawn = 0;
+        let actualRowsUsed = Math.ceil(totalStickers / cols);
+        
+        for(let i = 0; i < actualRowsUsed; i++) {
+            let rowPrefix = (i === Math.floor(actualRowsUsed / 2)) ? `(${actualRowsUsed})`.padEnd(7) : " ".repeat(7);
+            let rowContent = "";
+            for(let j = 0; j < cols; j++) {
+                if (stickersDrawn < totalStickers) { rowContent += "[]"; stickersDrawn++; } 
+                else { rowContent += "  "; }
             }
-          
-            // Bottom border
-            map += " ".repeat(LABEL_WIDTH) + "-".repeat(borderWidth);
-            return map;
+            map += rowPrefix + "|" + rowContent + "|\n";
         }
-        function calculate() {
-            let inW = parseFloat(document.getElementById('w').value);
-            let inH = parseFloat(document.getElementById('h').value);
-            let qty = parseInt(document.getElementById('qty').value);
-            let keyword = document.getElementById('keyword').value;
-          
-            if (!inW || !inH || !qty) {
-                alert("Please fill Sticker Width, Height and Total Quantity!");
-                return;
-            }
-            let sW = inW + 0.6;
-            let sH = inH + 0.6;
-            let sw, sh, sheetSizeDisplay;
-            if (keyword === "custom") {
-                let artW = parseFloat(document.getElementById('artW').value);
-                let artH = parseFloat(document.getElementById('artH').value);
-                if (!artW || !artH) {
-                    alert("Please fill Custom Artboard Width and Height!");
-                    return;
-                }
-                sw = artW;
-                sh = artH;
-                sheetSizeDisplay = `${artW}x${artH}`;
+        map += "       " + "-".repeat(cols * 2 + 2);
+        return map;
+    }
+
+    function calculate() {
+        const inW = parseFloat(document.getElementById('w').value);
+        const inH = parseFloat(document.getElementById('h').value);
+        const qty = parseInt(document.getElementById('qty').value);
+        const margin = parseFloat(document.getElementById('margin').value) || 0;
+        const keyword = document.getElementById('keyword').value;
+        const output = document.getElementById('output');
+
+        if (!inW || !inH || !qty) { output.innerHTML = "Error: Fill sticker dimensions and quantity."; return; }
+
+        const sW = inW + margin; 
+        const sH = inH + margin;
+
+        let finalSize = { w: 30, h: 30, layout: null, totalSheets: Infinity };
+
+        if (keyword === "custom") {
+            let cw = parseFloat(document.getElementById('artW').value);
+            let ch = parseFloat(document.getElementById('artH').value);
+            finalSize = { w: cw, h: ch, layout: getLayout(cw, ch, sW, sH) };
+            finalSize.totalSheets = Math.ceil(qty / finalSize.layout.perSheet);
+        } else if (keyword === "sheet") {
+            finalSize = { w: 30, h: 30, layout: getLayout(30, 30, sW, sH) };
+            finalSize.totalSheets = Math.ceil(qty / finalSize.layout.perSheet);
+        } else {
+            let optA = getLayout(30, 30, sW, sH);
+            let sheetsA = Math.ceil(qty / optA.perSheet);
+            let optB = getLayout(50, 30, sW, sH);
+            let sheetsB = Math.ceil(qty / optB.perSheet);
+
+            if (sheetsB < sheetsA) {
+                finalSize = { w: 50, h: 30, layout: optB, totalSheets: sheetsB };
             } else {
-                let finalSH = 30;
-                if (keyword === "diecut") {
-                    let test30 = getBestLayout(30, 30, sW, sH);
-                    finalSH = (qty % test30.perSheet === 0 && test30.perSheet > 0) ? 30 : 50;
-                }
-                sw = 30;
-                sh = finalSH;
-                sheetSizeDisplay = `30x${finalSH}`;
+                finalSize = { w: 30, h: 30, layout: optA, totalSheets: sheetsA };
             }
-            let layout = getBestLayout(sw, sh, sW, sH);
-            let numSheets = Math.floor(qty / layout.perSheet);
-            let rem = qty % layout.perSheet;
-            const LABEL_WIDTH = 7;
-            let borderWidth = (layout.cols * 2) + 2;
-            let colLabelText = `(${layout.cols})`;
-            let half = Math.floor((borderWidth - colLabelText.length) / 2);
-            let colLabel = " ".repeat(LABEL_WIDTH + half) + colLabelText;
-
-            let mainRowsUsed = Math.ceil(layout.perSheet / layout.cols); // always = layout.rows for main
-            let mainMap = colLabel + "\n" + drawMap(layout.cols, layout.rows, layout.perSheet);
-
-            let remSection = "";
-            if (rem > 0) {
-                const plural = rem === 1 ? "sticker" : "stickers";
-                let remRowsUsed = Math.ceil(rem / layout.cols);
-                let remMap = colLabel + "\n" + drawMap(layout.cols, layout.rows, rem);
-                remSection = `\n\n<span class="stat-label">Remainder Sheet Map (${rem} ${plural}):</span>\n\n` +
-                            `${remMap}\n\nRow: ${remRowsUsed}   Column: ${layout.cols}`;
-            }
-
-            let resultHTML = `Sticker Details: ${keyword.toUpperCase()}, ${inW}x${inH}, Qty: ${qty}\n` +
-                `--------------------------------------\n` +
-                `<span class="stat-label">Sheet Size:</span> ${sheetSizeDisplay}cm\n` +
-                `<span class="stat-label">Stickers per sheet:</span> ${layout.perSheet}\n` +
-                `<span class="stat-label">Number of sheets:</span> ${numSheets}\n` +
-                `<span class="stat-label">Remainder:</span> ${rem}\n\n` +
-                `<span class="stat-label">Main Sheet Map:</span>\n\n${mainMap}\n\nRow: ${mainRowsUsed}   Column: ${layout.cols}` + remSection;
-            document.getElementById('output').innerHTML = resultHTML;
         }
-        window.onload = function() {
-            toggleCustomArtboard();
-        };
-    </script>
+
+        const layout = finalSize.layout;
+        if (!layout || layout.perSheet <= 0) {
+            output.innerHTML = "Error: Sticker + Margin is too big for the sheet.";
+            return;
+        }
+
+        const numSheets = Math.floor(qty / layout.perSheet);
+        const rem = qty % layout.perSheet;
+        const colLabel = " ".repeat(7 + Math.floor((layout.cols * 2 + 2 - `(${layout.cols})`.length) / 2)) + `(${layout.cols})`;
+
+        let result = `[STICKER REPORT: ${keyword.toUpperCase()}]\n`;
+        result += `Size: ${inW}x${inH}cm | Margin: ${margin}cm\n`;
+        result += `Target Qty: ${qty}\n`;
+        result += `--------------------------------------\n`;
+        result += `<span class="stat-label">Sheet Size:</span> ${finalSize.w}x${finalSize.h}cm\n`;
+        result += `<span class="stat-label">Per Sheet:</span> ${layout.perSheet} pcs\n`;
+        result += `<span class="stat-label">Total Material:</span> <span class="highlight">${finalSize.totalSheets} Sheet(s)</span>\n`;
+        result += `<span class="stat-label">Remainder:</span> ${rem}\n\n`;
+        result += `<span class="stat-label">Layout Map:</span>\n${colLabel}\n${drawMap(layout.cols, layout.perSheet)}\n`;
+        
+        if (rem > 0 && finalSize.totalSheets > 1) {
+            result += `\n<span class="stat-label">Remainder Map (${rem}):</span>\n${colLabel}\n${drawMap(layout.cols, rem)}`;
+        }
+
+        output.innerHTML = result;
+    }
+
+    function copyToClipboard() {
+        const text = document.getElementById('output').innerText;
+        navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard!"));
+    }
+</script>
+
 </body>
 </html>
