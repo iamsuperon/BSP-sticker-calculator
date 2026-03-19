@@ -70,7 +70,7 @@
     
     <div class="input-group">
         <label>Total Quantity Needed</label>
-        <input type="number" id="qty" placeholder="e.g. 100">
+        <input type="number" id="qty" placeholder="e.g. 500">
     </div>
     
     <div class="btn-container">
@@ -162,8 +162,10 @@
             return;
         }
 
-        const numSheets = Math.floor(qty / layout.perSheet);
         const rem = qty % layout.perSheet;
+        const fullSheetsCount = (rem === 0) ? finalSize.totalSheets : finalSize.totalSheets - 1;
+        const fullStickersTotal = layout.perSheet * fullSheetsCount;
+
         const colLabel = " ".repeat(7 + Math.floor((layout.cols * 2 + 2 - `(${layout.cols})`.length) / 2)) + `(${layout.cols})`;
 
         let result = `[STICKER REPORT: ${keyword.toUpperCase()}]\n`;
@@ -174,10 +176,19 @@
         result += `<span class="stat-label">Per Sheet:</span> ${layout.perSheet} pcs\n`;
         result += `<span class="stat-label">Total Material:</span> <span class="highlight">${finalSize.totalSheets} Sheet(s)</span>\n`;
         result += `<span class="stat-label">Remainder:</span> ${rem}\n\n`;
-        result += `<span class="stat-label">Layout Map:</span>\n${colLabel}\n${drawMap(layout.cols, layout.perSheet)}\n`;
         
-        if (rem > 0 && finalSize.totalSheets > 1) {
-            result += `\n<span class="stat-label">Remainder Map (${rem}):</span>\n${colLabel}\n${drawMap(layout.cols, rem)}`;
+        // Main Layout Section
+        result += `<span class="stat-label">Layout Map:</span>\n`;
+        result += `Total Stickers: ${fullStickersTotal}\n`;
+        result += `Total Sheets: ${fullSheetsCount} Sheet(s)\n`;
+        result += `${colLabel}\n${drawMap(layout.cols, layout.perSheet)}\n`;
+        
+        // Remainder Section
+        if (rem > 0) {
+            result += `\n<span class="stat-label">Remainder Map:</span>\n`;
+            result += `Total Stickers: ${rem}\n`;
+            result += `Total Sheets: 1 Sheet(s)\n`;
+            result += `${colLabel}\n${drawMap(layout.cols, rem)}`;
         }
 
         output.innerHTML = result;
