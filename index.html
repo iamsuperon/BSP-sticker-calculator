@@ -36,6 +36,9 @@
         .highlight { color: #fff; background: #28a745; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
         .warn { color: #ffd54f; }
 
+        /* Star used in the layout map: fixed 1-character box so the borders always line up */
+        .star { display: inline-block; width: 1ch; text-align: center; overflow: visible; }
+
         /* History */
         .history-btn { flex: none; width: 52px; height: 52px; padding: 0; display: flex; align-items: center; justify-content: center; background: #eaf6ee; color: #28a745; }
         .history-btn svg { width: 30px; height: 30px; }
@@ -104,8 +107,8 @@
     <div class="history-panel" id="historyPanel" hidden>
         <div class="history-head">
             <strong id="historyTitle">History</strong>
-            <button class="clear-btn" type="button" onclick="clearHistory()">
-                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>Erase history
+            <button class="clear-btn" id="eraseBtn" type="button" onclick="clearHistory()">
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg><span id="eraseLabel">Erase history</span>
             </button>
         </div>
         <div id="historyList"></div>
@@ -174,18 +177,19 @@
     function drawMap(cols, count) {
         if (cols <= 0 || count <= 0) return "";
         const rowsUsed = Math.ceil(count / cols);
-        let map = "       " + "_".repeat(cols * 2 + 2) + "\n";
+        let map = "       " + "_".repeat(cols * 2 + 3) + "\n";
         let drawn = 0;
         for (let i = 0; i < rowsUsed; i++) {
             const prefix = (i === Math.floor(rowsUsed / 2)) ? `(${rowsUsed})`.padEnd(7) : " ".repeat(7);
             let row = "";
             for (let j = 0; j < cols; j++) {
-                if (drawn < count) { row += "★"; drawn++; }
+                // Space + star (fixed 1-character box) = exactly 2 characters wide, so stars are centered
+                if (drawn < count) { row += ' <span class="star">★</span>'; drawn++; }
                 else { row += "  "; }
             }
-            map += prefix + "|" + row + "|\n";
+            map += prefix + "|" + row + " |\n";
         }
-        map += "       " + "-".repeat(cols * 2 + 2);
+        map += "       " + "-".repeat(cols * 2 + 3);
         return map;
     }
 
@@ -207,7 +211,7 @@
         const rect = bestRect(count, grid);
         const cols = rect ? rect.cols : grid.cols;       // fallback: fill rows of the full grid width
         const rows = Math.ceil(count / cols);
-        const colLabel = " ".repeat(7 + Math.max(0, Math.floor((cols * 2 + 2 - `(${cols})`.length) / 2))) + `(${cols})`;
+        const colLabel = " ".repeat(7 + Math.max(0, Math.floor((cols * 2 + 3 - `(${cols})`.length) / 2))) + `(${cols})`;
         const note = rect
             ? `Layout: ${cols} x ${rows} (no vacant spots)`
             : `<span class="warn">Layout: ${cols} x ${rows} (no clean rectangle for ${count} pcs, ${cols * rows - count} vacant)</span>`;
@@ -427,12 +431,26 @@
         panel.hidden = !open;
     }
 
+    // Two-tap confirm (browsers can silently block confirm() popups, so we confirm on the button itself)
+    let eraseArmed = false, eraseTimer = null;
+
+    function resetEraseBtn() {
+        eraseArmed = false;
+        clearTimeout(eraseTimer);
+        document.getElementById('eraseLabel').textContent = 'Erase history';
+    }
+
     function clearHistory() {
         if (!loadHistory().length) return;
-        if (confirm('Erase all calculation history?')) {
-            saveHistory([]);
-            renderHistory();
+        if (!eraseArmed) {
+            eraseArmed = true;
+            document.getElementById('eraseLabel').textContent = 'Tap again to confirm';
+            eraseTimer = setTimeout(resetEraseBtn, 3000);
+            return;
         }
+        resetEraseBtn();
+        saveHistory([]);
+        renderHistory();
     }
 
     // Remove one entry from history (no confirm: it's one quick job you can re-enter)
