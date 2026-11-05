@@ -7,7 +7,8 @@
     <style>
         body { font-family: 'Courier New', monospace; font-size: 18px; padding: 20px; background: #f0f2f5; color: #333; }
         .card { background: white; padding: 28px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 720px; margin: auto; }
-        h2 { margin-top: 0; color: #28a745; border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 1.6em; }
+        h2 { margin: 0; color: #28a745; font-size: 1.6em; }
+        .header { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 18px; }
         .input-group { margin-bottom: 18px; flex: 1; }
         .row { display: flex; gap: 10px; }
         label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 0.85em; text-transform: uppercase; color: #666; }
@@ -34,12 +35,81 @@
         .stat-label { font-weight: bold; color: #55ff55; }
         .highlight { color: #fff; background: #28a745; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
         .warn { color: #ffd54f; }
+
+        /* History */
+        .history-btn { flex: none; width: 52px; height: 52px; padding: 0; display: flex; align-items: center; justify-content: center; background: #eaf6ee; color: #28a745; }
+        .history-btn svg { width: 30px; height: 30px; }
+        .history-panel { background: #f7f8fa; border: 2px solid #dfe3e8; border-radius: 10px; padding: 14px; margin-bottom: 20px; }
+        .history-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .history-head strong { font-size: 1.05em; }
+        .clear-btn { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 15px; background: #dc3545; color: white; }
+        .clear-btn .icon { width: 20px; height: 20px; }
+        #historyList { max-height: 340px; overflow-y: auto; }
+        .history-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .history-item { flex: 1; min-width: 0; display: block; text-align: left; padding: 12px 14px; background: white; color: #333; border: 2px solid #e5e8ec; font-weight: normal; font-size: 17px; }
+        .del-btn { flex: none; width: 56px; padding: 0; display: flex; align-items: center; justify-content: center; background: #fdecee; color: #dc3545; border: 2px solid #f6c9ce; }
+        .del-btn:hover { background: #dc3545; color: white; }
+        .del-btn .icon { width: 26px; height: 26px; }
+
+        /* Icons (drawn once in the sprite at the top of <body>) */
+        .icon { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        /* Clear-screen button (next to Calculate / Copy) */
+        .reset-btn { flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px 20px; background: #e9ecef; color: #495057; }
+        .reset-btn .icon { width: 26px; height: 26px; }
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .card { padding: 20px; }
+            .btn-container { gap: 8px; }
+            .calc-btn, .copy-btn { min-width: 0; padding: 14px 6px; font-size: 17px; }
+            .reset-btn { width: 56px; padding: 0; }
+            .reset-btn span { display: none; }
+        }
+        .history-item:hover { border-color: #28a745; }
+        .hi-main { font-weight: bold; }
+        .hi-sub { color: #28a745; font-weight: bold; margin-top: 2px; }
+        .hi-time { color: #888; font-size: 0.8em; margin-top: 2px; }
+        .history-empty { color: #888; padding: 8px 2px; }
     </style>
 </head>
 <body>
 
+<!-- Icon sprite: trash (delete) and eraser (clear screen) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-trash" viewBox="0 0 24 24">
+        <path d="M3 6h18"></path>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        <line x1="10" y1="11" x2="10" y2="17"></line>
+        <line x1="14" y1="11" x2="14" y2="17"></line>
+    </symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24">
+        <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path>
+        <path d="M22 21H7"></path>
+        <path d="m5 11 9 9"></path>
+    </symbol>
+</svg>
+
 <div class="card">
-    <h2>Sticker Calculator (30x30)</h2>
+    <div class="header">
+        <h2>Sticker Calculator (30x30)</h2>
+        <button class="history-btn" id="historyBtn" type="button" title="History" aria-label="Show calculation history" onclick="toggleHistory()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"></circle>
+                <polyline points="12 7 12 12 15.5 14"></polyline>
+            </svg>
+        </button>
+    </div>
+
+    <div class="history-panel" id="historyPanel" hidden>
+        <div class="history-head">
+            <strong id="historyTitle">History</strong>
+            <button class="clear-btn" type="button" onclick="clearHistory()">
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>Erase history
+            </button>
+        </div>
+        <div id="historyList"></div>
+    </div>
 
     <div class="input-group">
         <label>Sticker Width x Height (cm)</label>
@@ -68,6 +138,9 @@
     <div class="btn-container">
         <button class="calc-btn" onclick="calculate()">Calculate Best Fit</button>
         <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">Copy Result</button>
+        <button class="reset-btn" id="resetBtn" type="button" title="Clear screen" aria-label="Clear screen" onclick="clearScreen()">
+            <svg class="icon" aria-hidden="true"><use href="#i-eraser"></use></svg><span>Clear</span>
+        </button>
     </div>
 
     <div id="output">Enter details and click Calculate...</div>
@@ -141,29 +214,46 @@
         return `${note}\n\n${colLabel}\n${drawMap(cols, count)}\n`;
     }
 
-    function buildReport(w, h, qty, bleed, margin) {
+    // The numbers behind a report: sheet grid, divisor split vs. full sheets + remainder.
+    // Returns null when the sticker (+ bleed + margin) doesn't fit on the sheet at all.
+    function computePlan(w, h, qty, bleed, margin) {
         // Cell = sticker + bleed + cutting margin
         const cellW = w + bleed + margin;
         const cellH = h + bleed + margin;
         const grid = getGrid(cellW, cellH);
-
-        if (grid.capacity < 1) {
-            return "Error: Sticker + bleed + margin is too big for the 30x30cm sheet.";
-        }
+        if (grid.capacity < 1) return null;
 
         const cap = grid.capacity;
         const minSheets = Math.ceil(qty / cap);
 
         // Divisor method: biggest divisor of qty that still fits on one sheet
-        const divisors = getDivisors(qty);
-        const fitting = divisors.filter(d => d <= cap);
+        const fitting = getDivisors(qty).filter(d => d <= cap);
         const cleanPerSheet = fitting[fitting.length - 1]; // 1 always divides qty, so this exists
         const cleanSheets = qty / cleanPerSheet;
 
-        // Use the clean split only if it costs no extra material vs. just filling sheets
-        const useClean = (cleanSheets === minSheets);
+        return {
+            cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets,
+            // Use the clean split only if it costs no extra material vs. just filling sheets
+            useClean: cleanSheets === minSheets,
+            rem: qty % cap,
+            fullSheets: Math.floor(qty / cap)
+        };
+    }
 
-        const L =(label, val) => `<span class="stat-label">${label}</span> ${val}\n`;
+    // One-line result shown in the history list
+    function summarize(p) {
+        if (p.useClean) {
+            return `${p.cleanSheets} ${p.cleanSheets === 1 ? 'sheet' : 'sheets'} x ${p.cleanPerSheet} pcs`;
+        }
+        return `${p.minSheets} sheets: ${p.fullSheets} x ${p.cap} + ${p.rem}`;
+    }
+
+    function buildReport(w, h, qty, bleed, margin) {
+        const p = computePlan(w, h, qty, bleed, margin);
+        if (!p) return "Error: Sticker + bleed + margin is too big for the 30x30cm sheet.";
+        const { cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets, useClean, rem, fullSheets } = p;
+
+        const L = (label, val) => `<span class="stat-label">${label}</span> ${val}\n`;
         const H = t => `<span class="highlight">${t}</span>`;
 
         let r = `[STICKER REPORT]\n`;
@@ -185,9 +275,6 @@
             r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}\n`;
             r += mapBlock(cleanPerSheet, grid);
         } else {
-            const rem = qty % cap;
-            const fullSheets = Math.floor(qty / cap);
-
             r += L("Method:", "<span class=\"warn\">No good divisor - full sheets + remainder sheet</span>");
             r += L("Per Sheet:", `${cap} pcs`);
             r += L("Total Material:", H(`${minSheets} Sheet(s)`));
@@ -211,7 +298,7 @@
         return r;
     }
 
-    function calculate() {
+    function calculate(save = true) {
         const w = parseFloat(document.getElementById('w').value);
         const h = parseFloat(document.getElementById('h').value);
         const qty = parseInt(document.getElementById('qty').value);
@@ -228,6 +315,139 @@
             return;
         }
         output.innerHTML = buildReport(w, h, qty, bleed, margin);
+
+        const plan = computePlan(w, h, qty, bleed, margin);
+        if (save && plan) addHistory({ w, h, qty, bleed, margin, summary: summarize(plan) });
+    }
+
+    // ---------- History (saved in this browser's localStorage) ----------
+    const HISTORY_KEY = 'stickerCalcHistory';
+    const HISTORY_MAX = 50;
+
+    const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+    function loadHistory() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+            if (!Array.isArray(raw)) return [];
+            const data = raw.filter(it => it && typeof it === 'object');
+            // Entries saved before delete existed have no id yet - give them one (once)
+            if (data.some(it => !it.id)) {
+                data.forEach(it => { if (!it.id) it.id = newId(); });
+                saveHistory(data);
+            }
+            return data;
+        } catch (e) { return []; }
+    }
+
+    function saveHistory(list) {
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
+        catch (e) { /* storage blocked: history just won't persist */ }
+    }
+
+    function addHistory(entry) {
+        const list = loadHistory();
+        const last = list[0];
+        // Don't pile up duplicates when the same job is calculated twice in a row
+        const repeat = last && last.w === entry.w && last.h === entry.h && last.qty === entry.qty
+                       && last.bleed === entry.bleed && last.margin === entry.margin;
+        if (!repeat) {
+            list.unshift({ ...entry, id: newId(), t: Date.now() });
+            saveHistory(list.slice(0, HISTORY_MAX));
+        }
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const list = loadHistory();
+        const box = document.getElementById('historyList');
+        document.getElementById('historyTitle').textContent = `History (${list.length})`;
+        box.textContent = '';
+
+        if (!list.length) {
+            const empty = document.createElement('div');
+            empty.className = 'history-empty';
+            empty.textContent = 'No calculations yet.';
+            box.appendChild(empty);
+            return;
+        }
+
+        list.forEach(item => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'history-item';
+
+            const main = document.createElement('div');
+            main.className = 'hi-main';
+            main.textContent = `${fmt(Number(item.w))} x ${fmt(Number(item.h))} cm  |  qty ${Number(item.qty)}`;
+
+            const sub = document.createElement('div');
+            sub.className = 'hi-sub';
+            sub.textContent = String(item.summary || '');
+
+            const time = document.createElement('div');
+            time.className = 'hi-time';
+            time.textContent = new Date(item.t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+            btn.append(main, sub, time);
+            btn.addEventListener('click', () => loadFromHistory(item));
+
+            // Trash button: deletes just this one calculation
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'del-btn';
+            del.title = 'Delete this calculation';
+            del.setAttribute('aria-label', 'Delete this calculation');
+            del.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>';
+            del.addEventListener('click', () => deleteHistoryItem(item.id));
+
+            const row = document.createElement('div');
+            row.className = 'history-row';
+            row.append(btn, del);
+            box.appendChild(row);
+        });
+    }
+
+    // Put an old job's numbers back in the form and show its result (without saving it again)
+    function loadFromHistory(item) {
+        document.getElementById('w').value = item.w;
+        document.getElementById('h').value = item.h;
+        document.getElementById('bleed').value = item.bleed;
+        document.getElementById('margin').value = item.margin;
+        document.getElementById('qty').value = item.qty;
+        toggleHistory(false);
+        calculate(false);
+        document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function toggleHistory(show) {
+        const panel = document.getElementById('historyPanel');
+        const open = (typeof show === 'boolean') ? show : panel.hidden;
+        if (open) renderHistory();
+        panel.hidden = !open;
+    }
+
+    function clearHistory() {
+        if (!loadHistory().length) return;
+        if (confirm('Erase all calculation history?')) {
+            saveHistory([]);
+            renderHistory();
+        }
+    }
+
+    // Remove one entry from history (no confirm: it's one quick job you can re-enter)
+    function deleteHistoryItem(id) {
+        saveHistory(loadHistory().filter(it => it.id !== id));
+        renderHistory();
+    }
+
+    // Clear screen: empties the form and the result. History is left alone.
+    function clearScreen() {
+        ['w', 'h', 'qty'].forEach(id => { document.getElementById(id).value = ''; });
+        document.getElementById('bleed').value = '0.2';
+        document.getElementById('margin').value = '0.6';
+        document.getElementById('output').innerHTML = 'Enter details and click Calculate...';
+        document.getElementById('w').focus();
     }
 
     function copyToClipboard() {
@@ -239,8 +459,10 @@
         }).catch(() => alert("Copy failed - select the text and copy manually."));
     }
 
-    // Enter key = Calculate
-    document.addEventListener('keydown', e => { if (e.key === 'Enter') calculate(); });
+    // Enter key = Calculate (only while typing in a field, so it doesn't fire on history buttons)
+    document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') calculate(); });
+
+    renderHistory();
 </script>
 
 </body>
