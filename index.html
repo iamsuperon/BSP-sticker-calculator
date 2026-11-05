@@ -68,6 +68,9 @@
             .reset-btn { width: 56px; padding: 0; }
             .reset-btn span { display: none; }
         }
+        .note { font-size: 0.75em; color: #888; margin: -6px 0 18px; line-height: 1.4; }
+        .alt-btn { display: block; width: 100%; flex: none; margin-top: 12px; background: #fff3cd; color: #856404; border: 2px solid #ffe08a; }
+        .alt-btn[hidden] { display: none; }
         .history-item:hover { border-color: #28a745; }
         .hi-main { font-weight: bold; }
         .hi-sub { color: #28a745; font-weight: bold; margin-top: 2px; }
@@ -133,6 +136,8 @@
         </div>
     </div>
 
+    <div class="note">Bleed and margin are added once to each sticker's width and height (cell = sticker + bleed + margin). Neighboring stickers don't share that space.</div>
+
     <div class="input-group">
         <label>Total Quantity Needed</label>
         <input type="number" id="qty" placeholder="e.g. 100" inputmode="numeric">
@@ -145,6 +150,8 @@
             <svg class="icon" aria-hidden="true"><use href="#i-eraser"></use></svg><span>Clear</span>
         </button>
     </div>
+
+    <button class="alt-btn" id="altBtn" type="button" hidden onclick="toggleAlt()"></button>
 
     <div id="output">Enter details and click Calculate...</div>
 </div>
@@ -238,7 +245,8 @@
         return {
             cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets,
             // Use the clean split only if it costs no extra material vs. just filling sheets
-            useClean: cleanSheets === minSheets,
+            // AND each sheet is a full rectangle (no vacant spots). Otherwise: full sheets + remainder sheet.
+            useClean: cleanSheets === minSheets && bestRect(cleanPerSheet, grid) !== null,
             rem: qty % cap,
             fullSheets: Math.floor(qty / cap)
         };
@@ -252,7 +260,15 @@
         return `${p.minSheets} sheets: ${p.fullSheets} x ${p.cap} + ${p.rem}`;
     }
 
-    function buildReport(w, h, qty, bleed, margin) {
+    let showAlt = false;    // which view is on screen: main plan or the ALT (clean split) plan
+let lastInput = null;   // the numbers behind the current report
+
+// ALT is offered only when the even split costs exactly one more sheet than the main plan
+function hasAlt(p) {
+    return !p.useClean && p.cleanSheets > p.minSheets && p.cleanSheets <= p.minSheets + 1;
+}
+
+function buildReport(w, h, qty, bleed, margin, alt = false) {
         const p = computePlan(w, h, qty, bleed, margin);
         if (!p) return "Error: Sticker + bleed + margin is too big for the 30x30cm sheet.";
         const { cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets, useClean, rem, fullSheets } = p;
@@ -269,7 +285,17 @@
         r += L("Divisors of " + qty + " that fit (≤ " + cap + "):", fitting.join(", "));
         r += `\n`;
 
-        if (useClean) {
+        if (alt && hasAlt(p)) {
+            r += L("Method:", "<span class=\"warn\">ALT - clean split (identical sheets)</span>");
+            r += L("Per Sheet:", `${cleanPerSheet} pcs`);
+            r += L("Total Material:", H(`${cleanSheets} Sheet(s)`));
+            r += L("Remainder:", "None");
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}\n`;
+            r += mapBlock(cleanPerSheet, grid);
+            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} sheets (this ALT costs +${cleanSheets - minSheets} sheet)\n`;
+        } else if (useClean) {
             r += L("Method:", "Divisor split (no remainder)");
             r += L("Per Sheet:", `${cleanPerSheet} pcs`);
             r += L("Total Material:", H(`${cleanSheets} Sheet(s)`));
@@ -279,7 +305,7 @@
             r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}\n`;
             r += mapBlock(cleanPerSheet, grid);
         } else {
-            r += L("Method:", "<span class=\"warn\">No good divisor - full sheets + remainder sheet</span>");
+            r += L("Method:", "<span class=\"warn\">Full sheets + remainder sheet (avoids vacant spots)</span>");
             r += L("Per Sheet:", `${cap} pcs`);
             r += L("Total Material:", H(`${minSheets} Sheet(s)`));
             r += L("Remainder:", `${rem} (on 1 extra sheet)`);
@@ -293,11 +319,6 @@
             r += `Total Stickers: ${H(rem)}\n`;
             r += `Total Sheets: ${H("1 Sheet(s)")}\n`;
             r += mapBlock(rem, grid);
-
-            // Only worth mentioning if it's close in cost
-            if (cleanSheets <= minSheets + 1) {
-                r += `\n<span class="stat-label">Alt (clean split):</span> ${cleanSheets} sheets x ${cleanPerSheet} pcs (+${cleanSheets - minSheets} sheet)\n`;
-            }
         }
         return r;
     }
@@ -309,6 +330,8 @@
         const bleed = parseFloat(document.getElementById('bleed').value) || 0;
         const margin = parseFloat(document.getElementById('margin').value) || 0;
         const output = document.getElementById('output');
+        document.getElementById('altBtn').hidden = true;
+        showAlt = false;
 
         if (!(w > 0) || !(h > 0) || !(qty > 0)) {
             output.innerHTML = "Error: Fill sticker dimensions and quantity.";
@@ -318,10 +341,29 @@
             output.innerHTML = "Error: Bleed and margin can't be negative.";
             return;
         }
-        output.innerHTML = buildReport(w, h, qty, bleed, margin);
+        lastInput = { w, h, qty, bleed, margin };
+        renderOutput();
 
         const plan = computePlan(w, h, qty, bleed, margin);
-        if (save && plan) addHistory({ w, h, qty, bleed, margin, summary: summarize(plan) });
+        if (save && plan) addHistory({ w, h, qty, bleed, margin });
+    }
+
+    // Draw the current view (main or ALT) and show/hide the toggle button
+    function renderOutput() {
+        const { w, h, qty, bleed, margin } = lastInput;
+        const p = computePlan(w, h, qty, bleed, margin);
+        const btn = document.getElementById('altBtn');
+        const alt = !!p && hasAlt(p);
+        if (!alt) showAlt = false;
+        document.getElementById('output').innerHTML = buildReport(w, h, qty, bleed, margin, showAlt);
+        btn.hidden = !alt;
+        if (alt) btn.textContent = showAlt ? '← Back to main layout' : `Show ALT layout (${p.cleanSheets} sheets x ${p.cleanPerSheet} pcs)`;
+    }
+
+    function toggleAlt() {
+        if (!lastInput) return;
+        showAlt = !showAlt;
+        renderOutput();
     }
 
     // ---------- History (saved in this browser's localStorage) ----------
@@ -387,7 +429,15 @@
 
             const sub = document.createElement('div');
             sub.className = 'hi-sub';
-            sub.textContent = String(item.summary || '');
+            // Worked out fresh every time, so old entries always match the current logic
+            let summaryText = '';
+            try {
+                const hp = (item.w > 0 && item.h > 0 && item.qty > 0)
+                    ? computePlan(Number(item.w), Number(item.h), Number(item.qty), Number(item.bleed) || 0, Number(item.margin) || 0)
+                    : null;
+                summaryText = hp ? summarize(hp) : 'Too big for the sheet';
+            } catch (e) { summaryText = ''; }
+            sub.textContent = summaryText;
 
             const time = document.createElement('div');
             time.className = 'hi-time';
@@ -465,6 +515,9 @@
         document.getElementById('bleed').value = '0.2';
         document.getElementById('margin').value = '0.6';
         document.getElementById('output').innerHTML = 'Enter details and click Calculate...';
+        document.getElementById('altBtn').hidden = true;
+        showAlt = false;
+        lastInput = null;
         document.getElementById('w').focus();
     }
 
