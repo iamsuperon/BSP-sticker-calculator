@@ -168,6 +168,7 @@
     const DEFAULT_SHEET = 30;   // default artboard: 30 x 30 cm (editable in the form)
     const EPS = 1e-9;   // guards against floating point errors (e.g. 30 / 5.000000000000001)
     const fmt = n => +n.toFixed(2);
+    const sheetWord = n => (n === 1 ? 'sheet' : 'sheets');
 
     // All divisors of n, ascending
     function getDivisors(n) {
@@ -253,7 +254,7 @@
         const cleanSheets = qty / cleanPerSheet;
 
         return {
-            cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets,
+            qty, cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets,
             // Use the clean split only if it costs no extra material vs. just filling sheets
             // AND each sheet is a full rectangle (no vacant spots). Otherwise: full sheets + remainder sheet.
             useClean: cleanSheets === minSheets && bestRect(cleanPerSheet, grid) !== null,
@@ -262,26 +263,55 @@
         };
     }
 
+    // ALT on a SMALLER artboard: split qty into identical sheets that are each a full rectangle
+    // (e.g. 50 pcs = 2 sheets x 5x5) and size the artboard to just that block.
+    // Picks the fewest sheets that work, and only if it costs at most one extra sheet.
+    function computeSmallAlt(p) {
+        let best = null;
+        for (const d of getDivisors(p.qty)) {            // ascending: the last hit has the fewest sheets
+            if (d < 2 || d > p.cap) continue;
+            const rect = bestRect(d, p.grid);
+            if (rect) best = { perSheet: d, sheets: p.qty / d, rect };
+        }
+        if (!best || best.sheets > p.minSheets + 1) return null;
+
+        // Cell sizes along the sheet's width / height (swapped when the stickers are turned 90 degrees)
+        const alongW = p.grid.rotated ? p.cellH : p.cellW;
+        const alongH = p.grid.rotated ? p.cellW : p.cellH;
+        best.artW = best.rect.cols * alongW;
+        best.artH = best.rect.rows * alongH;
+        return best;
+    }
+
+    // Which ALT (if any) to offer for this plan:
+    //  - 'clean': same artboard, identical sheets, one extra sheet (only when every sheet is a full rectangle)
+    //  - 'small': smaller artboard, identical full-rectangle sheets, one extra sheet
+    function getAlt(p) {
+        if (p.useClean) return null;
+        const cleanOK = p.cleanSheets === p.minSheets + 1;
+        if (cleanOK && bestRect(p.cleanPerSheet, p.grid)) return { kind: 'clean' };
+        const small = computeSmallAlt(p);
+        if (small) return { kind: 'small', ...small };
+        return cleanOK ? { kind: 'clean' } : null;
+    }
+
     // One-line result shown in the history list
     function summarize(p) {
         if (p.useClean) {
-            return `${p.cleanSheets} ${p.cleanSheets === 1 ? 'sheet' : 'sheets'} x ${p.cleanPerSheet} pcs`;
+            return `${p.cleanSheets} ${sheetWord(p.cleanSheets)} x ${p.cleanPerSheet} pcs`;
         }
+        if (p.fullSheets === 0) return `1 sheet x ${p.qty} pcs`;
         return `${p.minSheets} sheets: ${p.fullSheets} x ${p.cap} + ${p.rem}`;
     }
 
-    let showAlt = false;    // which view is on screen: main plan or the ALT (clean split) plan
-let lastInput = null;   // the numbers behind the current report
+    let showAlt = false;    // which view is on screen: main plan or the ALT plan
+    let lastInput = null;   // the numbers behind the current report
 
-// ALT is offered only when the even split costs exactly one more sheet than the main plan
-function hasAlt(p) {
-    return !p.useClean && p.cleanSheets > p.minSheets && p.cleanSheets <= p.minSheets + 1;
-}
-
-function buildReport(w, h, qty, bleed, margin, alt = false, sw = DEFAULT_SHEET, sh = DEFAULT_SHEET) {
+    function buildReport(w, h, qty, bleed, margin, alt = false, sw = DEFAULT_SHEET, sh = DEFAULT_SHEET) {
         const p = computePlan(w, h, qty, bleed, margin, sw, sh);
         if (!p) return `Error: Sticker + bleed + margin is too big for the ${fmt(sw)}x${fmt(sh)}cm sheet.`;
         const { cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets, useClean, rem, fullSheets } = p;
+        const altPlan = alt ? getAlt(p) : null;
 
         const L = (label, val) => `<span class="stat-label">${label}</span> ${val}\n`;
         const H = t => `<span class="highlight">${t}</span>`;
@@ -295,7 +325,21 @@ function buildReport(w, h, qty, bleed, margin, alt = false, sw = DEFAULT_SHEET, 
         r += L("Divisors of " + qty + " that fit (≤ " + cap + "):", fitting.join(", "));
         r += `\n`;
 
-        if (alt && hasAlt(p)) {
+        if (altPlan && altPlan.kind === 'small') {
+            const mainArea = minSheets * sw * sh;
+            const altArea = altPlan.sheets * altPlan.artW * altPlan.artH;
+            r += L("Method:", "<span class=\"warn\">ALT - smaller artboard (identical sheets)</span>");
+            r += L("Artboard (ALT):", H(`${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm`));
+            r += L("Per Sheet:", `${altPlan.perSheet} pcs (${altPlan.rect.cols} x ${altPlan.rect.rows})`);
+            r += L("Total Material:", H(`${altPlan.sheets} Sheet(s)`));
+            r += L("Remainder:", "None");
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(altPlan.sheets + " Sheet(s)")}\n`;
+            r += mapBlock(altPlan.perSheet, grid);
+            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} of ${fmt(sw)}x${fmt(sh)}cm = ${fmt(mainArea)} cm²\n`;
+            r += `<span class="stat-label">This ALT:</span> ${altPlan.sheets} sheets of ${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm = ${fmt(altArea)} cm²\n`;
+        } else if (altPlan && altPlan.kind === 'clean') {
             r += L("Method:", "<span class=\"warn\">ALT - clean split (identical sheets)</span>");
             r += L("Per Sheet:", `${cleanPerSheet} pcs`);
             r += L("Total Material:", H(`${cleanSheets} Sheet(s)`));
@@ -304,7 +348,7 @@ function buildReport(w, h, qty, bleed, margin, alt = false, sw = DEFAULT_SHEET, 
             r += `Total Stickers: ${H(qty)}\n`;
             r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}\n`;
             r += mapBlock(cleanPerSheet, grid);
-            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} sheets (this ALT costs +${cleanSheets - minSheets} sheet)\n`;
+            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} (this ALT costs +${cleanSheets - minSheets} sheet)\n`;
         } else if (useClean) {
             r += L("Method:", "Divisor split (no remainder)");
             r += L("Per Sheet:", `${cleanPerSheet} pcs`);
@@ -314,6 +358,17 @@ function buildReport(w, h, qty, bleed, margin, alt = false, sw = DEFAULT_SHEET, 
             r += `Total Stickers: ${H(qty)}\n`;
             r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}\n`;
             r += mapBlock(cleanPerSheet, grid);
+        } else if (fullSheets === 0) {
+            // Everything fits on one sheet, just not as a clean rectangle: this IS the main layout
+            r += L("Method:", "<span class=\"warn\">Single sheet (no clean rectangle)</span>");
+            r += L("Per Sheet:", `${qty} pcs`);
+            r += L("Total Material:", H("1 Sheet(s)"));
+            r += L("Remainder:", "None");
+
+            r += `\n<span class="stat-label">Layout Map:</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H("1 Sheet(s)")}\n`;
+            r += mapBlock(qty, grid);
         } else {
             r += L("Method:", "<span class=\"warn\">Full sheets + remainder sheet (avoids vacant spots)</span>");
             r += L("Per Sheet:", `${cap} pcs`);
@@ -364,16 +419,24 @@ function buildReport(w, h, qty, bleed, margin, alt = false, sw = DEFAULT_SHEET, 
         if (save && plan) addHistory({ w, h, qty, bleed, margin, sw, sh });
     }
 
+    // Text on the ALT button, depending on which ALT is on offer
+    function altLabel(a, p) {
+        if (a.kind === 'small') {
+            return `Show ALT layout (${a.sheets} sheets of ${a.rect.cols} x ${a.rect.rows}, ${fmt(a.artW)}x${fmt(a.artH)}cm)`;
+        }
+        return `Show ALT layout (${p.cleanSheets} sheets x ${p.cleanPerSheet} pcs)`;
+    }
+
     // Draw the current view (main or ALT) and show/hide the toggle button
     function renderOutput() {
         const { w, h, qty, bleed, margin, sw, sh } = lastInput;
         const p = computePlan(w, h, qty, bleed, margin, sw, sh);
         const btn = document.getElementById('altBtn');
-        const alt = !!p && hasAlt(p);
-        if (!alt) showAlt = false;
+        const a = p ? getAlt(p) : null;
+        if (!a) showAlt = false;
         document.getElementById('output').innerHTML = buildReport(w, h, qty, bleed, margin, showAlt, sw, sh);
-        btn.hidden = !alt;
-        if (alt) btn.textContent = showAlt ? '← Back to main layout' : `Show ALT layout (${p.cleanSheets} sheets x ${p.cleanPerSheet} pcs)`;
+        btn.hidden = !a;
+        if (a) btn.textContent = showAlt ? '← Back to main layout' : altLabel(a, p);
     }
 
     function toggleAlt() {
@@ -535,7 +598,7 @@ function buildReport(w, h, qty, bleed, margin, alt = false, sw = DEFAULT_SHEET, 
     function clearScreen() {
         ['w', 'h', 'qty'].forEach(id => { document.getElementById(id).value = ''; });
         document.getElementById('bleed').value = '0.2';
-        document.getElementById('margin').value = '0.6';
+        document.getElementById('margin').value = '0.4';
         document.getElementById('sw').value = DEFAULT_SHEET;
         document.getElementById('sh').value = DEFAULT_SHEET;
         document.getElementById('output').innerHTML = 'Enter details and click Calculate...';
