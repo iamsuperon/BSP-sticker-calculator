@@ -180,7 +180,7 @@
             const prefix = (i === Math.floor(rowsUsed / 2)) ? `(${rowsUsed})`.padEnd(7) : " ".repeat(7);
             let row = "";
             for (let j = 0; j < cols; j++) {
-                if (drawn < count) { row += "[]"; drawn++; }
+                if (drawn < count) { row += "★"; drawn++; }
                 else { row += "  "; }
             }
             map += prefix + "|" + row + "|\n";
