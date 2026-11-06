@@ -71,6 +71,746 @@
         .note { font-size: 0.75em; color: #888; margin: -6px 0 18px; line-height: 1.4; }
         .alt-btn { display: block; width: 100%; flex: none; margin-top: 12px; background: #fff3cd; color: #856404; border: 2px solid #ffe08a; }
         .alt-btn[hidden] { display: none; }
+        .alt-btn.large { background: #e3f0ff; color: #0b4f9c; border: 2px solid #a9cdf7; }
+        .alt-btn.on { background: #ffc107; color: #533f03; border-color: #e0a800; }
+        .alt-btn.large.on { background: #4a90e2; color: #fff; border-color: #357abd; }
+        .history-item:hover { border-color: #28a745; }
+        .hi-main { font-weight: bold; }
+        .hi-sub { color: #28a745; font-weight: bold; margin-top: 2px; }
+        .hi-time { color: #888; font-size: 0.8em; margin-top: 2px; }
+        .history-empty { color: #888; padding: 8px 2px; }
+    </style>
+</head>
+<body>
+
+<!-- Icon sprite: trash (delete) and eraser (clear screen) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-trash" viewBox="0 0 24 24">
+        <path d="M3 6h18"></path>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+        <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        <line x1="10" y1="11" x2="10" y2="17"></line>
+        <line x1="14" y1="11" x2="14" y2="17"></line>
+    </symbol>
+    <symbol id="i-eraser" viewBox="0 0 24 24">
+        <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"></path>
+        <path d="M22 21H7"></path>
+        <path d="m5 11 9 9"></path>
+    </symbol>
+</svg>
+
+<div class="card">
+    <div class="header">
+        <h2>Sticker Calculator</h2>
+        <button class="history-btn" id="historyBtn" type="button" title="History" aria-label="Show calculation history" onclick="toggleHistory()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"></circle>
+                <polyline points="12 7 12 12 15.5 14"></polyline>
+            </svg>
+        </button>
+    </div>
+
+    <div class="history-panel" id="historyPanel" hidden>
+        <div class="history-head">
+            <strong id="historyTitle">History</strong>
+            <button class="clear-btn" id="eraseBtn" type="button" onclick="clearHistory()">
+                <svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg><span id="eraseLabel">Erase history</span>
+            </button>
+        </div>
+        <div id="historyList"></div>
+    </div>
+
+    <div class="input-group">
+        <label>Sticker Width x Height (cm)</label>
+        <div class="row">
+            <input type="number" id="w" placeholder="W" step="0.1" inputmode="decimal">
+            <input type="number" id="h" placeholder="H" step="0.1" inputmode="decimal">
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="input-group">
+            <label>Bleed (cm) - default 0.2</label>
+            <input type="number" id="bleed" value="0.2" step="0.1" inputmode="decimal">
+        </div>
+        <div class="input-group">
+            <label>Cut Margin (cm) - default 0.4</label>
+            <input type="number" id="margin" value="0.4" step="0.1" inputmode="decimal">
+        </div>
+    </div>
+
+    <div class="note">Bleed and margin are added once to each sticker's width and height (cell = sticker + bleed + margin). Neighboring stickers don't share that space.</div>
+
+    <div class="input-group">
+        <label>Artboard Width x Height (cm) - default 30 x 30</label>
+        <div class="row">
+            <input type="number" id="sw" value="30" step="0.1" inputmode="decimal">
+            <input type="number" id="sh" value="30" step="0.1" inputmode="decimal">
+        </div>
+    </div>
+
+    <div class="input-group">
+        <label>Large Artboard for ALT (cm) - default 32 x 32</label>
+        <div class="row">
+            <input type="number" id="lw" value="32" step="0.1" inputmode="decimal">
+            <input type="number" id="lh" value="32" step="0.1" inputmode="decimal">
+        </div>
+    </div>
+    <div class="note">Only used for the LARGE ALT button (must be bigger than the artboard above). The main layout always uses the artboard above.</div>
+
+    <div class="input-group">
+        <label>Total Quantity Needed</label>
+        <input type="number" id="qty" placeholder="e.g. 100" inputmode="numeric">
+    </div>
+
+    <div class="btn-container">
+        <button class="calc-btn" onclick="calculate()">Calculate Best Fit</button>
+        <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">Copy Result</button>
+        <button class="reset-btn" id="resetBtn" type="button" title="Clear screen" aria-label="Clear screen" onclick="clearScreen()">
+            <svg class="icon" aria-hidden="true"><use href="#i-eraser"></use></svg><span>Clear</span>
+        </button>
+    </div>
+
+    <button class="alt-btn" id="altBtn" type="button" hidden onclick="toggleAlt('near')"></button>
+    <button class="alt-btn large" id="altBtnLarge" type="button" hidden onclick="toggleAlt('large')"></button>
+
+    <div id="output">Enter details and click Calculate...</div>
+</div>
+
+<script>
+    const DEFAULT_SHEET = 30;   // default artboard: 30 x 30 cm (editable in the form)
+    const DEFAULT_LARGE = 32;   // default LARGE ALT artboard: 32 x 32 cm (editable in the form)
+    const EPS = 1e-9;   // guards against floating point errors (e.g. 30 / 5.000000000000001)
+    const fmt = n => +n.toFixed(2);
+    const sheetWord = n => (n === 1 ? 'sheet' : 'sheets');
+
+    // All divisors of n, ascending
+    function getDivisors(n) {
+        const small = [], large = [];
+        for (let i = 1; i * i <= n; i++) {
+            if (n % i === 0) {
+                small.push(i);
+                if (i !== n / i) large.push(n / i);
+            }
+        }
+        return small.concat(large.reverse());
+    }
+
+    // How many cells fit on the sheet. Tries the sticker as-is and turned 90 degrees
+    // (they only differ when the sheet or the sticker isn't square) and keeps the better one.
+    function getGrid(cellW, cellH, sw, sh) {
+        const a = { cols: Math.floor(sw / cellW + EPS), rows: Math.floor(sh / cellH + EPS), rotated: false };
+        const b = { cols: Math.floor(sw / cellH + EPS), rows: Math.floor(sh / cellW + EPS), rotated: true };
+        a.capacity = a.cols * a.rows;
+        b.capacity = b.cols * b.rows;
+        return b.capacity > a.capacity ? b : a;
+    }
+
+    function drawMap(cols, count) {
+        if (cols <= 0 || count <= 0) return "";
+        const rowsUsed = Math.ceil(count / cols);
+        let map = "       " + "_".repeat(cols * 2 + 3) + "\n";
+        let drawn = 0;
+        for (let i = 0; i < rowsUsed; i++) {
+            const prefix = (i === Math.floor(rowsUsed / 2)) ? `(${rowsUsed})`.padEnd(7) : " ".repeat(7);
+            let row = "";
+            for (let j = 0; j < cols; j++) {
+                // Space + star (fixed 1-character box) = exactly 2 characters wide, so stars are centered
+                if (drawn < count) { row += ' <span class="star">★</span>'; drawn++; }
+                else { row += "  "; }
+            }
+            map += prefix + "|" + row + " |\n";
+        }
+        map += "       " + "-".repeat(cols * 2 + 3);
+        return map;
+    }
+
+    // Lay `count` stickers out as a FULL rectangle (no vacant spots) that fits the sheet grid.
+    // Uses the divisors of count as cols x rows; the squarest block wins (ties -> more columns).
+    // Returns null when no rectangle fits (e.g. 13 pcs on a 6x4 grid).
+    function bestRect(count, grid) {
+        let best = null;
+        for (const c of getDivisors(count)) {
+            const r = count / c;
+            if (c > grid.cols || r > grid.rows) continue;
+            if (!best || Math.abs(c - r) <= Math.abs(best.cols - best.rows)) best = { cols: c, rows: r };
+        }
+        return best;
+    }
+
+    // WIDTH FIRST version of bestRect, used for the ALT layouts: the most columns that fit
+    // (fill the artboard width), then however many rows that takes. Avoids tall, narrow blocks.
+    function bestRectWide(count, grid) {
+        let best = null;
+        for (const c of getDivisors(count)) {            // ascending: the last valid one has the most columns
+            const r = count / c;
+            if (c > grid.cols || r > grid.rows) continue;
+            best = { cols: c, rows: r };
+        }
+        return best;
+    }
+
+    // cols x rows for `count` stickers on one sheet (wide = width first, for the ALT layouts).
+    // rect is null when there's no clean rectangle: rows of the full grid width, with vacant spots.
+    function layoutOf(count, grid, wide = false) {
+        const rect = wide ? bestRectWide(count, grid) : bestRect(count, grid);
+        const cols = rect ? rect.cols : grid.cols;
+        return { rect, cols, rows: Math.ceil(count / cols) };
+    }
+
+    // Size in cm of a cols x rows block of cells (width / height swap when the stickers are turned 90 degrees)
+    function blockSize(cols, rows, grid, cellW, cellH) {
+        return {
+            w: cols * (grid.rotated ? cellH : cellW),
+            h: rows * (grid.rotated ? cellW : cellH)
+        };
+    }
+
+    // Layout note + column label + ASCII map for one sheet holding `count` stickers
+    function mapBlock(count, grid, wide = false) {
+        const { rect, cols, rows } = layoutOf(count, grid, wide);
+        const colLabel = " ".repeat(7 + Math.max(0, Math.floor((cols * 2 + 3 - `(${cols})`.length) / 2))) + `(${cols})`;
+        const note = rect
+            ? `Layout: ${cols} x ${rows} (no vacant spots)`
+            : `<span class="warn">Layout: ${cols} x ${rows} (no clean rectangle for ${count} pcs, ${cols * rows - count} vacant)</span>`;
+        return `${note}\n\n${colLabel}\n${drawMap(cols, count)}\n`;
+    }
+
+    // The numbers behind a report: sheet grid, divisor split vs. full sheets + remainder.
+    // Returns null when the sticker (+ bleed + margin) doesn't fit on the sheet at all.
+    function computePlan(w, h, qty, bleed, margin, sw = DEFAULT_SHEET, sh = DEFAULT_SHEET) {
+        // Cell = sticker + bleed + cutting margin
+        const cellW = w + bleed + margin;
+        const cellH = h + bleed + margin;
+        const grid = getGrid(cellW, cellH, sw, sh);
+        if (grid.capacity < 1) return null;
+
+        const cap = grid.capacity;
+        const minSheets = Math.ceil(qty / cap);
+
+        // Divisor method: biggest divisor of qty that still fits on one sheet
+        const fitting = getDivisors(qty).filter(d => d <= cap);
+        const cleanPerSheet = fitting[fitting.length - 1]; // 1 always divides qty, so this exists
+        const cleanSheets = qty / cleanPerSheet;
+
+        return {
+            qty, cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets,
+            // Use the clean split only if it costs no extra material vs. just filling sheets
+            // AND each sheet is a full rectangle (no vacant spots). Otherwise: full sheets + remainder sheet.
+            useClean: cleanSheets === minSheets && bestRect(cleanPerSheet, grid) !== null,
+            rem: qty % cap,
+            fullSheets: Math.floor(qty / cap)
+        };
+    }
+
+    // ALT on a SMALLER artboard: split qty into identical sheets that are each a full rectangle
+    // (e.g. 50 pcs = 2 sheets x 5x5) and size the artboard to just that block.
+    // Picks the fewest sheets that work, and only if it costs at most one extra sheet.
+    // The block is laid out WIDTH FIRST (most columns that fit), then the height follows.
+    function computeSmallAlt(p) {
+        let best = null;
+        for (const d of getDivisors(p.qty)) {            // ascending: the last hit has the fewest sheets
+            if (d < 2 || d > p.cap) continue;
+            const rect = bestRectWide(d, p.grid);
+            if (rect) best = { perSheet: d, sheets: p.qty / d, rect };
+        }
+        if (!best || best.sheets > p.minSheets + 1) return null;
+
+        const size = blockSize(best.rect.cols, best.rect.rows, p.grid, p.cellW, p.cellH);
+        best.artW = size.w;
+        best.artH = size.h;
+        return best;
+    }
+
+    // The "near" ALT (same or SMALLER artboard), if any:
+    //  - 'clean': same artboard, identical sheets, one extra sheet (only when every sheet is a full rectangle)
+    //  - 'small': smaller artboard, identical full-rectangle sheets, one extra sheet
+    function getNearAlt(p) {
+        if (p.useClean) return null;
+        const cleanOK = p.cleanSheets === p.minSheets + 1;
+        // Same artboard, identical sheets (width-first layout), plus the artboard size that block needs
+        const clean = () => {
+            const lay = layoutOf(p.cleanPerSheet, p.grid, true);
+            const size = blockSize(lay.cols, lay.rows, p.grid, p.cellW, p.cellH);
+            return { kind: 'clean', perSheet: p.cleanPerSheet, sheets: p.cleanSheets, rect: lay.rect, artW: size.w, artH: size.h };
+        };
+        if (cleanOK && bestRect(p.cleanPerSheet, p.grid)) return clean();
+        const small = computeSmallAlt(p);
+        if (small) return { kind: 'small', ...small };
+        return cleanOK ? clean() : null;
+    }
+
+    // ALT on a LARGER artboard (e.g. 32 x 32): identical sheets, each one a full rectangle.
+    // Never uses more sheets than the main plan, and is only offered when it actually beats it:
+    // either the main plan has vacant spots / a remainder sheet, or this one saves sheets.
+    function computeLargeAlt(p, lw, lh, sw, sh) {
+        if (!(lw > 0) || !(lh > 0)) return null;
+        if (lw < sw || lh < sh || (lw === sw && lh === sh)) return null;   // must be bigger than the main artboard
+        const grid = getGrid(p.cellW, p.cellH, lw, lh);
+        let best = null;
+        for (const d of getDivisors(p.qty)) {            // ascending: the last hit has the fewest sheets
+            if (d < 2 || d > grid.capacity) continue;
+            const rect = bestRectWide(d, grid);
+            if (rect) best = { perSheet: d, sheets: p.qty / d, rect };
+        }
+        if (!best || best.sheets > p.minSheets) return null;
+        if (p.useClean && best.sheets >= p.cleanSheets) return null;   // main plan is already perfect: only worth it if it saves sheets
+
+        // artW x artH = the artboard this block actually needs; maxW x maxH = the large artboard you allowed
+        const size = blockSize(best.rect.cols, best.rect.rows, grid, p.cellW, p.cellH);
+        return { kind: 'large', ...best, grid, artW: size.w, artH: size.h, maxW: lw, maxH: lh };
+    }
+
+    // Up to two ALTs: 'near' (same / smaller artboard) and 'large' (bigger artboard)
+    function getAlts(p, lw, lh, sw, sh) {
+        return { near: getNearAlt(p), large: computeLargeAlt(p, lw, lh, sw, sh) };
+    }
+
+    // One-line result shown in the history list
+    function summarize(p) {
+        if (p.useClean) {
+            return `${p.cleanSheets} ${sheetWord(p.cleanSheets)} x ${p.cleanPerSheet} pcs`;
+        }
+        if (p.fullSheets === 0) return `1 sheet x ${p.qty} pcs`;
+        return `${p.minSheets} sheets: ${p.fullSheets} x ${p.cap} + ${p.rem}`;
+    }
+
+    let view = 'main';      // which view is on screen: 'main' plan, the 'near' ALT or the 'large' ALT
+    let lastInput = null;   // the numbers behind the current report
+
+    function buildReport(w, h, qty, bleed, margin, view = 'main', sw = DEFAULT_SHEET, sh = DEFAULT_SHEET, lw = 0, lh = 0) {
+        const p = computePlan(w, h, qty, bleed, margin, sw, sh);
+        if (!p) return `Error: Sticker + bleed + margin is too big for the ${fmt(sw)}x${fmt(sh)}cm sheet.`;
+        const { cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets, useClean, rem, fullSheets } = p;
+        const altPlan = (view === 'near' || view === 'large') ? getAlts(p, lw, lh, sw, sh)[view] : null;
+
+        const L = (label, val) => `<span class="stat-label">${label}</span> ${val}\n`;
+        const H = t => `<span class="highlight">${t}</span>`;
+
+        let r = `[STICKER REPORT]\n`;
+        r += `Sticker: ${fmt(w)}x${fmt(h)}cm | Bleed: ${fmt(bleed)}cm | Margin: ${fmt(margin)}cm\n`;
+        r += `Cell Size: ${fmt(cellW)}x${fmt(cellH)}cm (sticker + bleed + margin)\n`;
+        r += `Artboard: ${fmt(sw)}x${fmt(sh)}cm | Max Fit: ${grid.cols} x ${grid.rows} = ${cap} pcs${grid.rotated ? ' (stickers turned 90°)' : ''}\n`;
+        r += `Target Qty: ${qty}\n`;
+        r += `--------------------------------------\n`;
+        r += L("Divisors of " + qty + " that fit (≤ " + cap + "):", fitting.join(", "));
+        r += `\n`;
+
+        if (altPlan && altPlan.kind === 'small') {
+            const mainArea = minSheets * sw * sh;
+            const altArea = altPlan.sheets * altPlan.artW * altPlan.artH;
+            r += L("Method:", "<span class=\"warn\">ALT - smaller artboard (identical sheets)</span>");
+            r += L("Artboard Size Used:", `${H(`${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm`)} (max ${fmt(sw)}x${fmt(sh)}cm)`);
+            r += L("Per Sheet:", `${altPlan.perSheet} pcs (${altPlan.rect.cols} x ${altPlan.rect.rows})`);
+            r += L("Total Material:", H(`${altPlan.sheets} Sheet(s)`));
+            r += L("Remainder:", "None");
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(altPlan.sheets + " Sheet(s)")}\n`;
+            r += mapBlock(altPlan.perSheet, grid, true);
+            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} of ${fmt(sw)}x${fmt(sh)}cm = ${fmt(mainArea)} cm²\n`;
+            r += `<span class="stat-label">This ALT:</span> ${altPlan.sheets} sheets of ${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm = ${fmt(altArea)} cm²\n`;
+        } else if (altPlan && altPlan.kind === 'large') {
+            const mainArea = minSheets * sw * sh;
+            const altArea = altPlan.sheets * altPlan.artW * altPlan.artH;
+            r += L("Method:", "<span class=\"warn\">LARGE ALT - bigger artboard (identical sheets)</span>");
+            r += L("Artboard Size Used:", `${H(`${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm`)} (max ${fmt(altPlan.maxW)}x${fmt(altPlan.maxH)}cm)`);
+            r += L("Per Sheet:", `${altPlan.perSheet} pcs (${altPlan.rect.cols} x ${altPlan.rect.rows})${altPlan.grid.rotated ? ' - stickers turned 90°' : ''}`);
+            r += L("Total Material:", H(`${altPlan.sheets} Sheet(s)`));
+            r += L("Remainder:", "None");
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(altPlan.sheets + " Sheet(s)")}\n`;
+            r += mapBlock(altPlan.perSheet, altPlan.grid, true);
+            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} of ${fmt(sw)}x${fmt(sh)}cm = ${fmt(mainArea)} cm²\n`;
+            r += `<span class="stat-label">This ALT:</span> ${altPlan.sheets} ${sheetWord(altPlan.sheets)} of ${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm = ${fmt(altArea)} cm²\n`;
+        } else if (altPlan && altPlan.kind === 'clean') {
+            r += L("Method:", "<span class=\"warn\">ALT - clean split (identical sheets)</span>");
+            r += L("Artboard Size Used:", `${H(`${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm`)} (max ${fmt(sw)}x${fmt(sh)}cm)`);
+            r += L("Per Sheet:", `${cleanPerSheet} pcs`);
+            r += L("Total Material:", H(`${cleanSheets} Sheet(s)`));
+            r += L("Remainder:", "None");
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}\n`;
+            r += mapBlock(cleanPerSheet, grid, true);
+            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} (this ALT costs +${cleanSheets - minSheets} sheet)\n`;
+        } else if (useClean) {
+            r += L("Method:", "Divisor split (no remainder)");
+            r += L("Per Sheet:", `${cleanPerSheet} pcs`);
+            r += L("Total Material:", H(`${cleanSheets} Sheet(s)`));
+            r += L("Remainder:", "None");
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}\n`;
+            r += mapBlock(cleanPerSheet, grid);
+        } else if (fullSheets === 0) {
+            // Everything fits on one sheet, just not as a clean rectangle: this IS the main layout
+            r += L("Method:", "<span class=\"warn\">Single sheet (no clean rectangle)</span>");
+            r += L("Per Sheet:", `${qty} pcs`);
+            r += L("Total Material:", H("1 Sheet(s)"));
+            r += L("Remainder:", "None");
+
+            r += `\n<span class="stat-label">Layout Map:</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H("1 Sheet(s)")}\n`;
+            r += mapBlock(qty, grid);
+        } else {
+            r += L("Method:", "<span class=\"warn\">Full sheets + remainder sheet (avoids vacant spots)</span>");
+            r += L("Per Sheet:", `${cap} pcs`);
+            r += L("Total Material:", H(`${minSheets} Sheet(s)`));
+            r += L("Remainder:", `${rem} (on 1 extra sheet)`);
+
+            r += `\n<span class="stat-label">Layout Map:</span>\n`;
+            r += `Total Stickers: ${H(cap * fullSheets)}\n`;
+            r += `Total Sheets: ${H(fullSheets + " Sheet(s)")}\n`;
+            r += mapBlock(cap, grid);
+
+            r += `\n<span class="stat-label">Remainder Map:</span>\n`;
+            r += `Total Stickers: ${H(rem)}\n`;
+            r += `Total Sheets: ${H("1 Sheet(s)")}\n`;
+            r += mapBlock(rem, grid);
+        }
+        return r;
+    }
+
+    function calculate(save = true) {
+        const w = parseFloat(document.getElementById('w').value);
+        const h = parseFloat(document.getElementById('h').value);
+        const qty = parseInt(document.getElementById('qty').value);
+        const bleed = parseFloat(document.getElementById('bleed').value) || 0;
+        const margin = parseFloat(document.getElementById('margin').value) || 0;
+        const sw = parseFloat(document.getElementById('sw').value);
+        const sh = parseFloat(document.getElementById('sh').value);
+        const lwRaw = parseFloat(document.getElementById('lw').value);
+        const lhRaw = parseFloat(document.getElementById('lh').value);
+        const lw = lwRaw > 0 ? lwRaw : 0, lh = lhRaw > 0 ? lhRaw : 0;   // empty / invalid = no LARGE ALT
+        const output = document.getElementById('output');
+        hideAltBtns();
+        view = 'main';
+
+        if (!(w > 0) || !(h > 0) || !(qty > 0)) {
+            output.innerHTML = "Error: Fill sticker dimensions and quantity.";
+            return;
+        }
+        if (!(sw > 0) || !(sh > 0)) {
+            output.innerHTML = "Error: Enter a valid artboard size.";
+            return;
+        }
+        if (bleed < 0 || margin < 0) {
+            output.innerHTML = "Error: Bleed and margin can't be negative.";
+            return;
+        }
+        lastInput = { w, h, qty, bleed, margin, sw, sh, lw, lh };
+        renderOutput();
+
+        const plan = computePlan(w, h, qty, bleed, margin, sw, sh);
+        if (save && plan) addHistory({ w, h, qty, bleed, margin, sw, sh, lw, lh });
+    }
+
+    // Text on an ALT button, depending on which ALT is on offer
+    function altLabel(a, p) {
+        if (a.kind === 'large') {
+            return `Show LARGE ALT (${a.sheets} ${sheetWord(a.sheets)} of ${a.rect.cols} x ${a.rect.rows}, ${fmt(a.artW)}x${fmt(a.artH)}cm)`;
+        }
+        if (a.kind === 'small') {
+            return `Show SMALL ALT (${a.sheets} sheets of ${a.rect.cols} x ${a.rect.rows}, ${fmt(a.artW)}x${fmt(a.artH)}cm)`;
+        }
+        return `Show ALT layout (${p.cleanSheets} sheets x ${p.cleanPerSheet} pcs, ${fmt(a.artW)}x${fmt(a.artH)}cm)`;
+    }
+
+    function hideAltBtns() {
+        ['altBtn', 'altBtnLarge'].forEach(id => {
+            const b = document.getElementById(id);
+            b.hidden = true;
+            b.classList.remove('on');
+        });
+    }
+
+    // Show / hide one ALT button; the one whose view is on screen turns into "back to main"
+    function setAltBtn(id, key, alt, p) {
+        const btn = document.getElementById(id);
+        btn.hidden = !alt;
+        btn.classList.toggle('on', !!alt && view === key);
+        if (alt) btn.textContent = (view === key) ? '← Back to main layout' : altLabel(alt, p);
+    }
+
+    // Draw the current view (main, near ALT or large ALT) and update the toggle buttons
+    function renderOutput() {
+        const { w, h, qty, bleed, margin, sw, sh, lw, lh } = lastInput;
+        const p = computePlan(w, h, qty, bleed, margin, sw, sh);
+        const alts = p ? getAlts(p, lw, lh, sw, sh) : { near: null, large: null };
+        if (!alts[view]) view = 'main';
+        document.getElementById('output').innerHTML = buildReport(w, h, qty, bleed, margin, view, sw, sh, lw, lh);
+        setAltBtn('altBtn', 'near', alts.near, p);
+        setAltBtn('altBtnLarge', 'large', alts.large, p);
+    }
+
+    // Click an ALT button: show that ALT, or go back to main if it's already showing
+    function toggleAlt(key) {
+        if (!lastInput) return;
+        view = (view === key) ? 'main' : key;
+        renderOutput();
+    }
+
+    // ---------- History (saved in this browser's localStorage) ----------
+    const HISTORY_KEY = 'stickerCalcHistory';
+    const HISTORY_MAX = 50;
+
+    const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+    function loadHistory() {
+        try {
+            const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+            if (!Array.isArray(raw)) return [];
+            const data = raw.filter(it => it && typeof it === 'object');
+            // Entries saved before delete existed have no id yet - give them one (once)
+            if (data.some(it => !it.id)) {
+                data.forEach(it => { if (!it.id) it.id = newId(); });
+                saveHistory(data);
+            }
+            return data;
+        } catch (e) { return []; }
+    }
+
+    function saveHistory(list) {
+        try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
+        catch (e) { /* storage blocked: history just won't persist */ }
+    }
+
+    function addHistory(entry) {
+        const list = loadHistory();
+        const last = list[0];
+        // Don't pile up duplicates when the same job is calculated twice in a row
+        const repeat = last && last.w === entry.w && last.h === entry.h && last.qty === entry.qty
+                       && last.bleed === entry.bleed && last.margin === entry.margin
+                       && (last.sw || DEFAULT_SHEET) === entry.sw && (last.sh || DEFAULT_SHEET) === entry.sh
+                       && (last.lw === undefined ? DEFAULT_LARGE : last.lw) === entry.lw
+                       && (last.lh === undefined ? DEFAULT_LARGE : last.lh) === entry.lh;
+        if (!repeat) {
+            list.unshift({ ...entry, id: newId(), t: Date.now() });
+            saveHistory(list.slice(0, HISTORY_MAX));
+        }
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const list = loadHistory();
+        const box = document.getElementById('historyList');
+        document.getElementById('historyTitle').textContent = `History (${list.length})`;
+        box.textContent = '';
+
+        if (!list.length) {
+            const empty = document.createElement('div');
+            empty.className = 'history-empty';
+            empty.textContent = 'No calculations yet.';
+            box.appendChild(empty);
+            return;
+        }
+
+        list.forEach(item => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'history-item';
+
+            const main = document.createElement('div');
+            main.className = 'hi-main';
+            const isw = Number(item.sw) || DEFAULT_SHEET, ish = Number(item.sh) || DEFAULT_SHEET;
+            const sheetNote = (isw === DEFAULT_SHEET && ish === DEFAULT_SHEET) ? '' : `  |  sheet ${fmt(isw)}x${fmt(ish)}`;
+            main.textContent = `${fmt(Number(item.w))} x ${fmt(Number(item.h))} cm  |  qty ${Number(item.qty)}${sheetNote}`;
+
+            const sub = document.createElement('div');
+            sub.className = 'hi-sub';
+            // Worked out fresh every time, so old entries always match the current logic
+            let summaryText = '';
+            try {
+                const hp = (item.w > 0 && item.h > 0 && item.qty > 0)
+                    ? computePlan(Number(item.w), Number(item.h), Number(item.qty), Number(item.bleed) || 0, Number(item.margin) || 0,
+                                  Number(item.sw) || DEFAULT_SHEET, Number(item.sh) || DEFAULT_SHEET)
+                    : null;
+                summaryText = hp ? summarize(hp) : 'Too big for the sheet';
+            } catch (e) { summaryText = ''; }
+            sub.textContent = summaryText;
+
+            const time = document.createElement('div');
+            time.className = 'hi-time';
+            time.textContent = new Date(item.t).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
+            btn.append(main, sub, time);
+            btn.addEventListener('click', () => loadFromHistory(item));
+
+            // Trash button: deletes just this one calculation
+            const del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'del-btn';
+            del.title = 'Delete this calculation';
+            del.setAttribute('aria-label', 'Delete this calculation');
+            del.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg>';
+            del.addEventListener('click', () => deleteHistoryItem(item.id));
+
+            const row = document.createElement('div');
+            row.className = 'history-row';
+            row.append(btn, del);
+            box.appendChild(row);
+        });
+    }
+
+    // Put an old job's numbers back in the form and show its result (without saving it again)
+    function loadFromHistory(item) {
+        document.getElementById('w').value = item.w;
+        document.getElementById('h').value = item.h;
+        document.getElementById('bleed').value = item.bleed;
+        document.getElementById('margin').value = item.margin;
+        document.getElementById('qty').value = item.qty;
+        document.getElementById('sw').value = item.sw || DEFAULT_SHEET;
+        document.getElementById('sh').value = item.sh || DEFAULT_SHEET;
+        document.getElementById('lw').value = (item.lw === undefined) ? DEFAULT_LARGE : (item.lw || '');
+        document.getElementById('lh').value = (item.lh === undefined) ? DEFAULT_LARGE : (item.lh || '');
+        toggleHistory(false);
+        calculate(false);
+        document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function toggleHistory(show) {
+        const panel = document.getElementById('historyPanel');
+        const open = (typeof show === 'boolean') ? show : panel.hidden;
+        if (open) renderHistory();
+        panel.hidden = !open;
+    }
+
+    // Two-tap confirm (browsers can silently block confirm() popups, so we confirm on the button itself)
+    let eraseArmed = false, eraseTimer = null;
+
+    function resetEraseBtn() {
+        eraseArmed = false;
+        clearTimeout(eraseTimer);
+        document.getElementById('eraseLabel').textContent = 'Erase history';
+    }
+
+    function clearHistory() {
+        if (!loadHistory().length) return;
+        if (!eraseArmed) {
+            eraseArmed = true;
+            document.getElementById('eraseLabel').textContent = 'Tap again to confirm';
+            eraseTimer = setTimeout(resetEraseBtn, 3000);
+            return;
+        }
+        resetEraseBtn();
+        saveHistory([]);
+        renderHistory();
+    }
+
+    // Remove one entry from history (no confirm: it's one quick job you can re-enter)
+    function deleteHistoryItem(id) {
+        saveHistory(loadHistory().filter(it => it.id !== id));
+        renderHistory();
+    }
+
+    // Clear screen: empties the form and the result. History is left alone.
+    function clearScreen() {
+        ['w', 'h', 'qty'].forEach(id => { document.getElementById(id).value = ''; });
+        document.getElementById('bleed').value = '0.2';
+        document.getElementById('margin').value = '0.4';
+        document.getElementById('sw').value = DEFAULT_SHEET;
+        document.getElementById('sh').value = DEFAULT_SHEET;
+        document.getElementById('lw').value = DEFAULT_LARGE;
+        document.getElementById('lh').value = DEFAULT_LARGE;
+        document.getElementById('output').innerHTML = 'Enter details and click Calculate...';
+        hideAltBtns();
+        view = 'main';
+        lastInput = null;
+        document.getElementById('w').focus();
+    }
+
+    function copyToClipboard() {
+        const text = document.getElementById('output').innerText;
+        const btn = document.getElementById('copyBtn');
+        navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = "Copied!";
+            setTimeout(() => { btn.textContent = "Copy Result"; }, 1500);
+        }).catch(() => alert("Copy failed - select the text and copy manually."));
+    }
+
+    // Enter key = Calculate (only while typing in a field, so it doesn't fire on history buttons)
+    document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT') calculate(); });
+
+    renderHistory();
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sticker Calc Pro</title>
+    <style>
+        body { font-family: 'Courier New', monospace; font-size: 18px; padding: 20px; background: #f0f2f5; color: #333; }
+        .card { background: white; padding: 28px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 720px; margin: auto; }
+        h2 { margin: 0; color: #28a745; font-size: 1.6em; }
+        .header { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 18px; }
+        .input-group { margin-bottom: 18px; flex: 1; }
+        .row { display: flex; gap: 10px; }
+        label { display: block; font-weight: bold; margin-bottom: 6px; font-size: 0.85em; text-transform: uppercase; color: #666; }
+        input { padding: 14px; width: 100%; border: 2px solid #dfe3e8; border-radius: 8px; box-sizing: border-box; font-size: 20px; font-family: inherit; outline: none; transition: border-color 0.2s; }
+        input:focus { border-color: #28a745; }
+        .btn-container { display: flex; gap: 10px; margin-top: 20px; }
+        button { flex: 1; padding: 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; font-family: inherit; transition: 0.2s; }
+        .calc-btn { background: #28a745; color: white; }
+        .copy-btn { background: #6c757d; color: white; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        #output {
+            margin-top: 25px;
+            white-space: pre;
+            background: #1a1a1a;
+            color: #00FF00;
+            padding: 20px;
+            border-radius: 8px;
+            line-height: 1.45;
+            font-size: 16px;
+            border: 2px solid #333;
+            overflow-x: auto;
+        }
+        .stat-label { font-weight: bold; color: #55ff55; }
+        .highlight { color: #fff; background: #28a745; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
+        .warn { color: #ffd54f; }
+
+        /* Star used in the layout map: fixed 1-character box so the borders always line up */
+        .star { display: inline-block; width: 1ch; text-align: center; overflow: visible; }
+
+        /* History */
+        .history-btn { flex: none; width: 52px; height: 52px; padding: 0; display: flex; align-items: center; justify-content: center; background: #eaf6ee; color: #28a745; }
+        .history-btn svg { width: 30px; height: 30px; }
+        .history-panel { background: #f7f8fa; border: 2px solid #dfe3e8; border-radius: 10px; padding: 14px; margin-bottom: 20px; }
+        .history-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+        .history-head strong { font-size: 1.05em; }
+        .clear-btn { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; font-size: 15px; background: #dc3545; color: white; }
+        .clear-btn .icon { width: 20px; height: 20px; }
+        #historyList { max-height: 340px; overflow-y: auto; }
+        .history-row { display: flex; gap: 8px; margin-bottom: 8px; }
+        .history-item { flex: 1; min-width: 0; display: block; text-align: left; padding: 12px 14px; background: white; color: #333; border: 2px solid #e5e8ec; font-weight: normal; font-size: 17px; }
+        .del-btn { flex: none; width: 56px; padding: 0; display: flex; align-items: center; justify-content: center; background: #fdecee; color: #dc3545; border: 2px solid #f6c9ce; }
+        .del-btn:hover { background: #dc3545; color: white; }
+        .del-btn .icon { width: 26px; height: 26px; }
+
+        /* Icons (drawn once in the sprite at the top of <body>) */
+        .icon { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        /* Clear-screen button (next to Calculate / Copy) */
+        .reset-btn { flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px 20px; background: #e9ecef; color: #495057; }
+        .reset-btn .icon { width: 26px; height: 26px; }
+        @media (max-width: 480px) {
+            body { padding: 12px; }
+            .card { padding: 20px; }
+            .btn-container { gap: 8px; }
+            .calc-btn, .copy-btn { min-width: 0; padding: 14px 6px; font-size: 17px; }
+            .reset-btn { width: 56px; padding: 0; }
+            .reset-btn span { display: none; }
+        }
+        .note { font-size: 0.75em; color: #888; margin: -6px 0 18px; line-height: 1.4; }
+        .alt-btn { display: block; width: 100%; flex: none; margin-top: 12px; background: #fff3cd; color: #856404; border: 2px solid #ffe08a; }
+        .alt-btn[hidden] { display: none; }
         .history-item:hover { border-color: #28a745; }
         .hi-main { font-weight: bold; }
         .hi-sub { color: #28a745; font-weight: bold; margin-top: 2px; }
