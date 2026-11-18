@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sticker Calc Pro</title>
-    <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=7Y5AHaJnff7NH-bj78sMxuqrx03-OjM8icreykw4VXEBBmsDamulu8Q-HPkV7epQp28VpKBB7gShIhPr7UjWapFKhoXl_90l7RWV9ltJ3Wd9L82zRIk_iSlKK9PtzmepvJqIKUY07Z03eWHoSVWWFVFx7rG-vBgD9R5UAcX6XbL-hKCSR-js--TLoFXECeUB1PQOG0jOTEwcck1cQi-TABH-qi1g6wSLw09uUNHl5v1KAn_OrQscAlMomvEmo9gsb8cFy6BS72o83f6jyaJO-g530iM2qefl9PMOeGYpGId4u5Ne3F7vWjQ7RLDkYkLM" charset="UTF-8"></script><link rel="stylesheet" crossorigin="anonymous" href="https://gc.kis.v2.scr.kaspersky-labs.com/E3E8934C-235A-4B0E-825A-35A08381A191/abn/main.css?attr=aHR0cHM6Ly9jb250cmlidXRpb24udXNlcmNvbnRlbnQuZ29vZ2xlLmNvbS9kb3dubG9hZD9jPUNneGlZWEprWDNOMGIzSmhaMlVTVUJJTmNtVnpjRzl1YzJWZlpHRjBZUm9fQ2pBeVkyWmpabVZoTm1Sak1qQTBNR1ZpTURBd05qWXdPRFF4WVRNd1pUbG1aREEwTlRFMU5ESTFOR1F4TVRrNVlqY1NDeElIRU9TZ3RZTElBeGdCJmZpbGVuYW1lPWluZGV4Lmh0bWwmb3BpPTEwMzEzNTA1MA"/><style>
+    <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=SCT8pGfLpshunNivJe8pYXqhLzgVyqN3c-Ec0GV_7m1Ego1uf44ilR0wpFVh4M0kA4JVyL4Qwjd9fOwnXLWyqRxBUE8qNFd1UHf2-_UIPkhXpe90ckFkAoM7D57WuXwIZpIT25WqUgKc_eYSQsTdpGnh_cqNJmb7r8xA4l_iT8jWoTkmHA1lK8Fk-J0UDa2x28QAGTUfGOlpd6dYjNzuhbeMWoOrmudRbg3cZbHgtrZPLflemzOfMB0S9a4prbkb7wejBH8GqlV6U0PPLg1Y5tbn0_QX0c4a6_Pj_Sy-Fzcmri0sr54TAM0pE63WvVWa" charset="UTF-8"></script><link rel="stylesheet" crossorigin="anonymous" href="https://gc.kis.v2.scr.kaspersky-labs.com/E3E8934C-235A-4B0E-825A-35A08381A191/abn/main.css?attr=aHR0cHM6Ly9jb250cmlidXRpb24udXNlcmNvbnRlbnQuZ29vZ2xlLmNvbS9kb3dubG9hZD9jPUNneGlZWEprWDNOMGIzSmhaMlVTVUJJTmNtVnpjRzl1YzJWZlpHRjBZUm9fQ2pBMll6SmlZbVUwTkdGbE9UbGxNemRqTURBd05qWXdPRFEwTlRZMU1ETXlOVEF3TmpJeE5tVTBNbUl4TlRBMlltVVNDeElIRU9TZ3RZTElBeGdCJmZpbGVuYW1lPWluZGV4Lmh0bWwmb3BpPTEwMzEzNTA1MA"/><style>
         body { font-family: 'Courier New', monospace; font-size: 18px; padding: 20px; background: #f0f2f5; color: #333; }
         .card { background: white; padding: 28px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 720px; margin: auto; }
         h2 { margin: 0; color: #28a745; font-size: 1.6em; }
@@ -168,7 +168,7 @@
             <input type="number" id="forcePerSheet" placeholder="Auto" min="1" step="1" inputmode="numeric">
         </div>
     </div>
-    <div class="note">Leave "Force Per Sheet" blank for auto best-fit, or enter a number (e.g. 9) to lock stickers per sheet.</div>
+    <div class="note">Leave "Force Per Sheet" blank for auto best-fit. Entering a number (e.g. 9) locks stickers per sheet and ignores the artboard size limit.</div>
 
     <div class="btn-container">
         <button class="calc-btn" onclick="calculate()">Calculate Best Fit</button>
@@ -211,6 +211,21 @@
         a.capacity = a.cols * a.rows;
         b.capacity = b.cols * b.rows;
         return b.capacity > a.capacity ? b : a;
+    }
+
+    // Unrestricted grid for Forced Mode (ignores artboard size rules and picks the most square physical block)
+    function getForcedGrid(count, cellW, cellH) {
+        let best = null;
+        for (const c of getDivisors(count)) {
+            const r = count / c;
+            const w = c * cellW;
+            const h = r * cellH;
+            const diff = Math.abs(w - h);
+            if (!best || diff < best.diff - EPS || (Math.abs(diff - best.diff) <= EPS && c >= best.cols)) {
+                best = { cols: c, rows: r, capacity: count, rotated: false, artW: w, artH: h, diff };
+            }
+        }
+        return best;
     }
 
     function drawMap(cols, count) {
@@ -284,21 +299,36 @@
     }
 
     // The numbers behind a report: sheet grid, divisor split vs. full sheets + remainder (or forced per-sheet count).
-    // Returns null when the sticker (+ bleed + margin) doesn't fit on the sheet at all, or { error } if forced > cap.
+    // When forced !== null, ignores the artboard (sw x sh) rules completely.
     function computePlan(w, h, qty, bleed, margin, sw = DEFAULT_SHEET, sh = DEFAULT_SHEET, forced = null) {
         // Cell = sticker + bleed + cutting margin
         const cellW = w + bleed + margin;
         const cellH = h + bleed + margin;
+
+        if (forced !== null) {
+            const grid = getForcedGrid(forced, cellW, cellH);
+            const cap = forced;
+            const minSheets = Math.ceil(qty / forced);
+            const fitting = getDivisors(qty);
+            const cleanPerSheet = fitting[fitting.length - 1];
+            const cleanSheets = qty / cleanPerSheet;
+
+            return {
+                qty, cellW, cellH, grid, cap, forced, effectiveCap: forced, minSheets,
+                fitting, cleanPerSheet, cleanSheets,
+                useClean: false,
+                rem: qty % forced,
+                fullSheets: Math.floor(qty / forced),
+                forcedArtW: grid.artW,
+                forcedArtH: grid.artH
+            };
+        }
+
         const grid = getGrid(cellW, cellH, sw, sh);
         if (grid.capacity < 1) return null;
 
         const cap = grid.capacity;
-        if (forced !== null && forced > cap) {
-            return { error: `Error: Forced ${forced} pcs/sheet exceeds max fit of ${cap} pcs (${grid.cols} x ${grid.rows}) on ${fmt(sw)}x${fmt(sh)}cm.` };
-        }
-
-        const effectiveCap = forced !== null ? forced : cap;
-        const minSheets = Math.ceil(qty / effectiveCap);
+        const minSheets = Math.ceil(qty / cap);
 
         // Divisor method: biggest divisor of qty that still fits on one sheet
         const fitting = getDivisors(qty).filter(d => d <= cap);
@@ -306,12 +336,12 @@
         const cleanSheets = qty / cleanPerSheet;
 
         return {
-            qty, cellW, cellH, grid, cap, forced, effectiveCap, minSheets, fitting, cleanPerSheet, cleanSheets,
-            // Use the clean split only in auto mode if it costs no extra material vs. just filling sheets
+            qty, cellW, cellH, grid, cap, forced: null, effectiveCap: cap, minSheets, fitting, cleanPerSheet, cleanSheets,
+            // Use the clean split only if it costs no extra material vs. just filling sheets
             // AND each sheet is a full rectangle (no vacant spots). Otherwise: full sheets + remainder sheet.
-            useClean: forced === null && cleanSheets === minSheets && bestRect(cleanPerSheet, grid) !== null,
-            rem: qty % effectiveCap,
-            fullSheets: Math.floor(qty / effectiveCap)
+            useClean: cleanSheets === minSheets && bestRect(cleanPerSheet, grid) !== null,
+            rem: qty % cap,
+            fullSheets: Math.floor(qty / cap)
         };
     }
 
@@ -399,8 +429,7 @@
     function buildReport(w, h, qty, bleed, margin, view = 'main', sw = DEFAULT_SHEET, sh = DEFAULT_SHEET, lw = 0, lh = 0, forced = null) {
         const p = computePlan(w, h, qty, bleed, margin, sw, sh, forced);
         if (!p) return `Error: Sticker + bleed + margin is too big for the ${fmt(sw)}x${fmt(sh)}cm sheet.`;
-        if (p.error) return p.error;
-        const { cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets, useClean, rem, fullSheets } = p;
+        const { cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets, useClean, rem, fullSheets, forcedArtW, forcedArtH } = p;
         const altPlan = (view === 'near' || view === 'large') ? getAlts(p, lw, lh, sw, sh)[view] : null;
 
         const L = (label, val) => `<span class="stat-label">${label}</span> ${val}\n`;
@@ -409,15 +438,17 @@
         let r = `[STICKER REPORT]\n`;
         r += `Sticker: ${fmt(w)}x${fmt(h)}cm | Bleed: ${fmt(bleed)}cm | Margin: ${fmt(margin)}cm\n`;
         r += `Cell Size: ${fmt(cellW)}x${fmt(cellH)}cm (sticker + bleed + margin)\n`;
-        r += `Artboard: ${fmt(sw)}x${fmt(sh)}cm | Max Fit: ${grid.cols} x ${grid.rows} = ${cap} pcs${grid.rotated ? ' (stickers turned 90°)' : ''}\n`;
-        r += `Target Qty: ${qty}${forced !== null ? ` | Forced Per Sheet: ${forced} pcs` : ''}\n`;
-        r += `--------------------------------------\n`;
-        r += L("Divisors of " + qty + " that fit (≤ " + cap + "):", fitting.join(", "));
-        r += `\n`;
 
         if (forced !== null) {
+            r += `Artboard: Ignored (Forced Mode) | Grid: ${grid.cols} x ${grid.rows} = ${forced} pcs/sheet\n`;
+            r += `Target Qty: ${qty} | Forced Per Sheet: ${forced} pcs\n`;
+            r += `--------------------------------------\n`;
+            r += L("Divisors of " + qty + ":", fitting.join(", "));
+            r += `\n`;
+
             if (fullSheets === 0) {
                 r += L("Method:", `<span class="warn">Forced ${forced} pcs/sheet (single sheet, ${qty} pcs needed)</span>`);
+                r += L("Artboard Needed (for " + forced + " pcs):", H(`${fmt(forcedArtW)}x${fmt(forcedArtH)}cm`));
                 r += L("Per Sheet:", `${qty} pcs (forced cap: ${forced} pcs)`);
                 r += L("Total Material:", H("1 Sheet(s)"));
                 r += L("Remainder:", "None");
@@ -428,7 +459,8 @@
                 r += mapBlock(qty, grid);
             } else if (rem === 0) {
                 r += L("Method:", `<span class="warn">Forced ${forced} pcs/sheet (exact split, no remainder)</span>`);
-                r += L("Per Sheet:", `${forced} pcs (max fit: ${cap} pcs)`);
+                r += L("Artboard Needed:", H(`${fmt(forcedArtW)}x${fmt(forcedArtH)}cm`));
+                r += L("Per Sheet:", `${forced} pcs (${grid.cols} x ${grid.rows})`);
                 r += L("Total Material:", H(`${minSheets} Sheet(s)`));
                 r += L("Remainder:", "None");
 
@@ -438,7 +470,8 @@
                 r += mapBlock(forced, grid);
             } else {
                 r += L("Method:", `<span class="warn">Forced ${forced} pcs/sheet + remainder sheet</span>`);
-                r += L("Per Sheet:", `${forced} pcs (max fit: ${cap} pcs)`);
+                r += L("Artboard Needed:", H(`${fmt(forcedArtW)}x${fmt(forcedArtH)}cm`));
+                r += L("Per Sheet:", `${forced} pcs (${grid.cols} x ${grid.rows})`);
                 r += L("Total Material:", H(`${minSheets} Sheet(s)`));
                 r += L("Remainder:", `${rem} (on 1 extra sheet)`);
 
@@ -452,7 +485,16 @@
                 r += `Total Sheets: ${H("1 Sheet(s)")}\n`;
                 r += mapBlock(rem, grid);
             }
-        } else if (altPlan && altPlan.kind === 'small') {
+            return r;
+        }
+
+        r += `Artboard: ${fmt(sw)}x${fmt(sh)}cm | Max Fit: ${grid.cols} x ${grid.rows} = ${cap} pcs${grid.rotated ? ' (stickers turned 90°)' : ''}\n`;
+        r += `Target Qty: ${qty}\n`;
+        r += `--------------------------------------\n`;
+        r += L("Divisors of " + qty + " that fit (≤ " + cap + "):", fitting.join(", "));
+        r += `\n`;
+
+        if (altPlan && altPlan.kind === 'small') {
             const mainArea = minSheets * sw * sh;
             const altArea = altPlan.sheets * altPlan.artW * altPlan.artH;
             r += L("Method:", "<span class=\"warn\">ALT - smaller artboard (identical sheets)</span>");
@@ -550,10 +592,6 @@
             output.innerHTML = "Error: Fill sticker dimensions and quantity.";
             return;
         }
-        if (!(sw > 0) || !(sh > 0)) {
-            output.innerHTML = "Error: Enter a valid artboard size.";
-            return;
-        }
         if (bleed < 0 || margin < 0) {
             output.innerHTML = "Error: Bleed and margin can't be negative.";
             return;
@@ -566,12 +604,19 @@
                 return;
             }
         }
+        if (forced === null && (!(sw > 0) || !(sh > 0))) {
+            output.innerHTML = "Error: Enter a valid artboard size.";
+            return;
+        }
 
-        lastInput = { w, h, qty, bleed, margin, sw, sh, lw, lh, forced };
+        const safeSw = sw > 0 ? sw : DEFAULT_SHEET;
+        const safeSh = sh > 0 ? sh : DEFAULT_SHEET;
+
+        lastInput = { w, h, qty, bleed, margin, sw: safeSw, sh: safeSh, lw, lh, forced };
         renderOutput();
 
-        const plan = computePlan(w, h, qty, bleed, margin, sw, sh, forced);
-        if (save && plan && !plan.error) addHistory({ w, h, qty, bleed, margin, sw, sh, lw, lh, forced });
+        const plan = computePlan(w, h, qty, bleed, margin, safeSw, safeSh, forced);
+        if (save && plan) addHistory({ w, h, qty, bleed, margin, sw: safeSw, sh: safeSh, lw, lh, forced });
     }
 
     // Text on an ALT button, depending on which ALT is on offer
@@ -605,7 +650,7 @@
     function renderOutput() {
         const { w, h, qty, bleed, margin, sw, sh, lw, lh, forced = null } = lastInput;
         const p = computePlan(w, h, qty, bleed, margin, sw, sh, forced);
-        const alts = (p && !p.error) ? getAlts(p, lw, lh, sw, sh) : { near: null, large: null };
+        const alts = p ? getAlts(p, lw, lh, sw, sh) : { near: null, large: null };
         if (!alts[view]) view = 'main';
         document.getElementById('output').innerHTML = buildReport(w, h, qty, bleed, margin, view, sw, sh, lw, lh, forced);
         setAltBtn('altBtn', 'near', alts.near, p);
@@ -683,9 +728,9 @@
             const main = document.createElement('div');
             main.className = 'hi-main';
             const isw = Number(item.sw) || DEFAULT_SHEET, ish = Number(item.sh) || DEFAULT_SHEET;
-            const sheetNote = (isw === DEFAULT_SHEET && ish === DEFAULT_SHEET) ? '' : `  |  sheet ${fmt(isw)}x${fmt(ish)}`;
-            const forceNote = item.forced ? `  |  force ${Number(item.forced)}/sheet` : '';
-            main.textContent = `${fmt(Number(item.w))} x ${fmt(Number(item.h))} cm  |  qty ${Number(item.qty)}${sheetNote}${forceNote}`;
+            const sheetNote = item.forced ? `  |  force ${Number(item.forced)}/sheet`
+                : ((isw === DEFAULT_SHEET && ish === DEFAULT_SHEET) ? '' : `  |  sheet ${fmt(isw)}x${fmt(ish)}`);
+            main.textContent = `${fmt(Number(item.w))} x ${fmt(Number(item.h))} cm  |  qty ${Number(item.qty)}${sheetNote}`;
 
             const sub = document.createElement('div');
             sub.className = 'hi-sub';
@@ -696,7 +741,7 @@
                     ? computePlan(Number(item.w), Number(item.h), Number(item.qty), Number(item.bleed) || 0, Number(item.margin) || 0,
                                   Number(item.sw) || DEFAULT_SHEET, Number(item.sh) || DEFAULT_SHEET, item.forced ? Number(item.forced) : null)
                     : null;
-                summaryText = !hp ? 'Too big for the sheet' : (hp.error ? hp.error : summarize(hp));
+                summaryText = !hp ? 'Too big for the sheet' : summarize(hp);
             } catch (e) { summaryText = ''; }
             sub.textContent = summaryText;
 
