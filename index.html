@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sticker Calc Pro</title>
-    <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=PAytSHIBFw2_bumLK0BPJmr80Gllp8rQoUnlnCqHOVFOvoim7lZkTQ0LjA-xp4dDDjdpHDYuPoa58sCIGXbCDfthmZkAvdSE9e2BfNFp0PpHHlbPDT_D_-DdmAVTa069eY_x-RGNXakeRWvHdwfWxGa7eQpxBElXl-4QiBfbh1aVbrBNNyPx9XN9QeVi4AftoVVmsr8HmX22UKWT45r_VRsCe_Q4AtOvM7cdhpzTEVjIgGloKOLFkJyk7gR0SIHR49Qvz6AXNM1rH7yjvV5cAvFdgqXn1vMvE8N7Tj34ITwiEuD9XCJRMG7CmLtDxbhs" charset="UTF-8"></script><link rel="stylesheet" crossorigin="anonymous" href="https://gc.kis.v2.scr.kaspersky-labs.com/E3E8934C-235A-4B0E-825A-35A08381A191/abn/main.css?attr=aHR0cHM6Ly9jb250cmlidXRpb24udXNlcmNvbnRlbnQuZ29vZ2xlLmNvbS9kb3dubG9hZD9jPUNneGlZWEprWDNOMGIzSmhaMlVTVUJJTmNtVnpjRzl1YzJWZlpHRjBZUm9fQ2pBeU1URTNZMlk1TmpjeVlXRmpPVGN4TURBd05qWXdPRFF3TW1ObE9URTFNekEwTlRFMk0yTTNOR0l5TjJFd1pHTVNDeElIRU9TZ3RZTElBeGdCJmZpbGVuYW1lPWluZGV4Lmh0bWwmb3BpPTEwMzEzNTA1MA"/><style>
+    <script type="text/javascript" src="https://gc.kis.v2.scr.kaspersky-labs.com/FD126C42-EBFA-4E12-B309-BB3FDD723AC1/main.js?attr=7Y5AHaJnff7NH-bj78sMxuqrx03-OjM8icreykw4VXEBBmsDamulu8Q-HPkV7epQp28VpKBB7gShIhPr7UjWapFKhoXl_90l7RWV9ltJ3Wd9L82zRIk_iSlKK9PtzmepvJqIKUY07Z03eWHoSVWWFVFx7rG-vBgD9R5UAcX6XbL-hKCSR-js--TLoFXECeUB1PQOG0jOTEwcck1cQi-TABH-qi1g6wSLw09uUNHl5v1KAn_OrQscAlMomvEmo9gsb8cFy6BS72o83f6jyaJO-g530iM2qefl9PMOeGYpGId4u5Ne3F7vWjQ7RLDkYkLM" charset="UTF-8"></script><link rel="stylesheet" crossorigin="anonymous" href="https://gc.kis.v2.scr.kaspersky-labs.com/E3E8934C-235A-4B0E-825A-35A08381A191/abn/main.css?attr=aHR0cHM6Ly9jb250cmlidXRpb24udXNlcmNvbnRlbnQuZ29vZ2xlLmNvbS9kb3dubG9hZD9jPUNneGlZWEprWDNOMGIzSmhaMlVTVUJJTmNtVnpjRzl1YzJWZlpHRjBZUm9fQ2pBeVkyWmpabVZoTm1Sak1qQTBNR1ZpTURBd05qWXdPRFF4WVRNd1pUbG1aREEwTlRFMU5ESTFOR1F4TVRrNVlqY1NDeElIRU9TZ3RZTElBeGdCJmZpbGVuYW1lPWluZGV4Lmh0bWwmb3BpPTEwMzEzNTA1MA"/><style>
         body { font-family: 'Courier New', monospace; font-size: 18px; padding: 20px; background: #f0f2f5; color: #333; }
         .card { background: white; padding: 28px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 720px; margin: auto; }
         h2 { margin: 0; color: #28a745; font-size: 1.6em; }
@@ -216,8 +216,7 @@
     function drawMap(cols, count) {
         if (cols <= 0 || count <= 0) return "";
         const rowsUsed = Math.ceil(count / cols);
-        let map = "       " + "_".repeat(cols * 2 + 3) + "
-";
+        let map = "       " + "_".repeat(cols * 2 + 3) + "\n";
         let drawn = 0;
         for (let i = 0; i < rowsUsed; i++) {
             const prefix = (i === Math.floor(rowsUsed / 2)) ? `(${rowsUsed})`.padEnd(7) : " ".repeat(7);
@@ -227,8 +226,7 @@
                 if (drawn < count) { row += ' <span class="star">★</span>'; drawn++; }
                 else { row += "  "; }
             }
-            map += prefix + "|" + row + " |
-";
+            map += prefix + "|" + row + " |\n";
         }
         map += "       " + "-".repeat(cols * 2 + 3);
         return map;
@@ -282,11 +280,7 @@
         const note = rect
             ? `Layout: ${cols} x ${rows} (no vacant spots)`
             : `<span class="warn">Layout: ${cols} x ${rows} (no clean rectangle for ${count} pcs, ${cols * rows - count} vacant)</span>`;
-        return `${note}
-
-${colLabel}
-${drawMap(cols, count)}
-`;
+        return `${note}\n\n${colLabel}\n${drawMap(cols, count)}\n`;
     }
 
     // The numbers behind a report: sheet grid, divisor split vs. full sheets + remainder (or forced per-sheet count).
@@ -409,25 +403,17 @@ ${drawMap(cols, count)}
         const { cellW, cellH, grid, cap, minSheets, fitting, cleanPerSheet, cleanSheets, useClean, rem, fullSheets } = p;
         const altPlan = (view === 'near' || view === 'large') ? getAlts(p, lw, lh, sw, sh)[view] : null;
 
-        const L = (label, val) => `<span class="stat-label">${label}</span> ${val}
-`;
+        const L = (label, val) => `<span class="stat-label">${label}</span> ${val}\n`;
         const H = t => `<span class="highlight">${t}</span>`;
 
-        let r = `[STICKER REPORT]
-`;
-        r += `Sticker: ${fmt(w)}x${fmt(h)}cm | Bleed: ${fmt(bleed)}cm | Margin: ${fmt(margin)}cm
-`;
-        r += `Cell Size: ${fmt(cellW)}x${fmt(cellH)}cm (sticker + bleed + margin)
-`;
-        r += `Artboard: ${fmt(sw)}x${fmt(sh)}cm | Max Fit: ${grid.cols} x ${grid.rows} = ${cap} pcs${grid.rotated ? ' (stickers turned 90°)' : ''}
-`;
-        r += `Target Qty: ${qty}${forced !== null ? ` | Forced Per Sheet: ${forced} pcs` : ''}
-`;
-        r += `--------------------------------------
-`;
+        let r = `[STICKER REPORT]\n`;
+        r += `Sticker: ${fmt(w)}x${fmt(h)}cm | Bleed: ${fmt(bleed)}cm | Margin: ${fmt(margin)}cm\n`;
+        r += `Cell Size: ${fmt(cellW)}x${fmt(cellH)}cm (sticker + bleed + margin)\n`;
+        r += `Artboard: ${fmt(sw)}x${fmt(sh)}cm | Max Fit: ${grid.cols} x ${grid.rows} = ${cap} pcs${grid.rotated ? ' (stickers turned 90°)' : ''}\n`;
+        r += `Target Qty: ${qty}${forced !== null ? ` | Forced Per Sheet: ${forced} pcs` : ''}\n`;
+        r += `--------------------------------------\n`;
         r += L("Divisors of " + qty + " that fit (≤ " + cap + "):", fitting.join(", "));
-        r += `
-`;
+        r += `\n`;
 
         if (forced !== null) {
             if (fullSheets === 0) {
@@ -436,13 +422,9 @@ ${drawMap(cols, count)}
                 r += L("Total Material:", H("1 Sheet(s)"));
                 r += L("Remainder:", "None");
 
-                r += `
-<span class="stat-label">Layout Map:</span>
-`;
-                r += `Total Stickers: ${H(qty)}
-`;
-                r += `Total Sheets: ${H("1 Sheet(s)")}
-`;
+                r += `\n<span class="stat-label">Layout Map:</span>\n`;
+                r += `Total Stickers: ${H(qty)}\n`;
+                r += `Total Sheets: ${H("1 Sheet(s)")}\n`;
                 r += mapBlock(qty, grid);
             } else if (rem === 0) {
                 r += L("Method:", `<span class="warn">Forced ${forced} pcs/sheet (exact split, no remainder)</span>`);
@@ -450,13 +432,9 @@ ${drawMap(cols, count)}
                 r += L("Total Material:", H(`${minSheets} Sheet(s)`));
                 r += L("Remainder:", "None");
 
-                r += `
-<span class="stat-label">Layout Map (every sheet is identical):</span>
-`;
-                r += `Total Stickers: ${H(qty)}
-`;
-                r += `Total Sheets: ${H(`${minSheets} Sheet(s)`)}
-`;
+                r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+                r += `Total Stickers: ${H(qty)}\n`;
+                r += `Total Sheets: ${H(`${minSheets} Sheet(s)`)}\n`;
                 r += mapBlock(forced, grid);
             } else {
                 r += L("Method:", `<span class="warn">Forced ${forced} pcs/sheet + remainder sheet</span>`);
@@ -464,133 +442,89 @@ ${drawMap(cols, count)}
                 r += L("Total Material:", H(`${minSheets} Sheet(s)`));
                 r += L("Remainder:", `${rem} (on 1 extra sheet)`);
 
-                r += `
-<span class="stat-label">Layout Map:</span>
-`;
-                r += `Total Stickers: ${H(forced * fullSheets)}
-`;
-                r += `Total Sheets: ${H(`${fullSheets} Sheet(s)`)}
-`;
+                r += `\n<span class="stat-label">Layout Map:</span>\n`;
+                r += `Total Stickers: ${H(forced * fullSheets)}\n`;
+                r += `Total Sheets: ${H(`${fullSheets} Sheet(s)`)}\n`;
                 r += mapBlock(forced, grid);
 
-                r += `
-<span class="stat-label">Remainder Map:</span>
-`;
-                r += `Total Stickers: ${H(rem)}
-`;
-                r += `Total Sheets: ${H("1 Sheet(s)")}
-`;
+                r += `\n<span class="stat-label">Remainder Map:</span>\n`;
+                r += `Total Stickers: ${H(rem)}\n`;
+                r += `Total Sheets: ${H("1 Sheet(s)")}\n`;
                 r += mapBlock(rem, grid);
             }
         } else if (altPlan && altPlan.kind === 'small') {
             const mainArea = minSheets * sw * sh;
             const altArea = altPlan.sheets * altPlan.artW * altPlan.artH;
-            r += L("Method:", "<span class="warn">ALT - smaller artboard (identical sheets)</span>");
+            r += L("Method:", "<span class=\"warn\">ALT - smaller artboard (identical sheets)</span>");
             r += L("Artboard Size Used:", `${H(`${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm`)} (max ${fmt(sw)}x${fmt(sh)}cm)`);
             r += L("Per Sheet:", `${altPlan.perSheet} pcs (${altPlan.rect.cols} x ${altPlan.rect.rows})`);
             r += L("Total Material:", H(`${altPlan.sheets} Sheet(s)`));
             r += L("Remainder:", "None");
-            r += `
-<span class="stat-label">Layout Map (every sheet is identical):</span>
-`;
-            r += `Total Stickers: ${H(qty)}
-`;
-            r += `Total Sheets: ${H(altPlan.sheets + " Sheet(s)")}
-`;
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(altPlan.sheets + " Sheet(s)")}\n`;
             r += mapBlock(altPlan.perSheet, grid, true);
-            r += `
-<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} of ${fmt(sw)}x${fmt(sh)}cm = ${fmt(mainArea)} cm²
-`;
-            r += `<span class="stat-label">This ALT:</span> ${altPlan.sheets} sheets of ${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm = ${fmt(altArea)} cm²
-`;
+            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} of ${fmt(sw)}x${fmt(sh)}cm = ${fmt(mainArea)} cm²\n`;
+            r += `<span class="stat-label">This ALT:</span> ${altPlan.sheets} sheets of ${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm = ${fmt(altArea)} cm²\n`;
         } else if (altPlan && altPlan.kind === 'large') {
             const mainArea = minSheets * sw * sh;
             const altArea = altPlan.sheets * altPlan.artW * altPlan.artH;
-            r += L("Method:", "<span class="warn">LARGE ALT - bigger artboard (identical sheets)</span>");
+            r += L("Method:", "<span class=\"warn\">LARGE ALT - bigger artboard (identical sheets)</span>");
             r += L("Artboard Size Used:", `${H(`${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm`)} (max ${fmt(altPlan.maxW)}x${fmt(altPlan.maxH)}cm)`);
             r += L("Per Sheet:", `${altPlan.perSheet} pcs (${altPlan.rect.cols} x ${altPlan.rect.rows})${altPlan.grid.rotated ? ' - stickers turned 90°' : ''}`);
             r += L("Total Material:", H(`${altPlan.sheets} Sheet(s)`));
             r += L("Remainder:", "None");
-            r += `
-<span class="stat-label">Layout Map (every sheet is identical):</span>
-`;
-            r += `Total Stickers: ${H(qty)}
-`;
-            r += `Total Sheets: ${H(altPlan.sheets + " Sheet(s)")}
-`;
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(altPlan.sheets + " Sheet(s)")}\n`;
             r += mapBlock(altPlan.perSheet, altPlan.grid, true);
-            r += `
-<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} of ${fmt(sw)}x${fmt(sh)}cm = ${fmt(mainArea)} cm²
-`;
-            r += `<span class="stat-label">This ALT:</span> ${altPlan.sheets} ${sheetWord(altPlan.sheets)} of ${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm = ${fmt(altArea)} cm²
-`;
+            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} of ${fmt(sw)}x${fmt(sh)}cm = ${fmt(mainArea)} cm²\n`;
+            r += `<span class="stat-label">This ALT:</span> ${altPlan.sheets} ${sheetWord(altPlan.sheets)} of ${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm = ${fmt(altArea)} cm²\n`;
         } else if (altPlan && altPlan.kind === 'clean') {
-            r += L("Method:", "<span class="warn">ALT - clean split (identical sheets)</span>");
+            r += L("Method:", "<span class=\"warn\">ALT - clean split (identical sheets)</span>");
             r += L("Artboard Size Used:", `${H(`${fmt(altPlan.artW)}x${fmt(altPlan.artH)}cm`)} (max ${fmt(sw)}x${fmt(sh)}cm)`);
             r += L("Per Sheet:", `${cleanPerSheet} pcs`);
             r += L("Total Material:", H(`${cleanSheets} Sheet(s)`));
             r += L("Remainder:", "None");
-            r += `
-<span class="stat-label">Layout Map (every sheet is identical):</span>
-`;
-            r += `Total Stickers: ${H(qty)}
-`;
-            r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}
-`;
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}\n`;
             r += mapBlock(cleanPerSheet, grid, true);
-            r += `
-<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} (this ALT costs +${cleanSheets - minSheets} sheet)
-`;
+            r += `\n<span class="stat-label">Main plan:</span> ${minSheets} ${sheetWord(minSheets)} (this ALT costs +${cleanSheets - minSheets} sheet)\n`;
         } else if (useClean) {
             r += L("Method:", "Divisor split (no remainder)");
             r += L("Per Sheet:", `${cleanPerSheet} pcs`);
             r += L("Total Material:", H(`${cleanSheets} Sheet(s)`));
             r += L("Remainder:", "None");
-            r += `
-<span class="stat-label">Layout Map (every sheet is identical):</span>
-`;
-            r += `Total Stickers: ${H(qty)}
-`;
-            r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}
-`;
+            r += `\n<span class="stat-label">Layout Map (every sheet is identical):</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H(cleanSheets + " Sheet(s)")}\n`;
             r += mapBlock(cleanPerSheet, grid);
         } else if (fullSheets === 0) {
             // Everything fits on one sheet, just not as a clean rectangle: this IS the main layout
-            r += L("Method:", "<span class="warn">Single sheet (no clean rectangle)</span>");
+            r += L("Method:", "<span class=\"warn\">Single sheet (no clean rectangle)</span>");
             r += L("Per Sheet:", `${qty} pcs`);
             r += L("Total Material:", H("1 Sheet(s)"));
             r += L("Remainder:", "None");
 
-            r += `
-<span class="stat-label">Layout Map:</span>
-`;
-            r += `Total Stickers: ${H(qty)}
-`;
-            r += `Total Sheets: ${H("1 Sheet(s)")}
-`;
+            r += `\n<span class="stat-label">Layout Map:</span>\n`;
+            r += `Total Stickers: ${H(qty)}\n`;
+            r += `Total Sheets: ${H("1 Sheet(s)")}\n`;
             r += mapBlock(qty, grid);
         } else {
-            r += L("Method:", "<span class="warn">Full sheets + remainder sheet (avoids vacant spots)</span>");
+            r += L("Method:", "<span class=\"warn\">Full sheets + remainder sheet (avoids vacant spots)</span>");
             r += L("Per Sheet:", `${cap} pcs`);
             r += L("Total Material:", H(`${minSheets} Sheet(s)`));
             r += L("Remainder:", `${rem} (on 1 extra sheet)`);
 
-            r += `
-<span class="stat-label">Layout Map:</span>
-`;
-            r += `Total Stickers: ${H(cap * fullSheets)}
-`;
-            r += `Total Sheets: ${H(fullSheets + " Sheet(s)")}
-`;
+            r += `\n<span class="stat-label">Layout Map:</span>\n`;
+            r += `Total Stickers: ${H(cap * fullSheets)}\n`;
+            r += `Total Sheets: ${H(fullSheets + " Sheet(s)")}\n`;
             r += mapBlock(cap, grid);
 
-            r += `
-<span class="stat-label">Remainder Map:</span>
-`;
-            r += `Total Stickers: ${H(rem)}
-`;
-            r += `Total Sheets: ${H("1 Sheet(s)")}
-`;
+            r += `\n<span class="stat-label">Remainder Map:</span>\n`;
+            r += `Total Stickers: ${H(rem)}\n`;
+            r += `Total Sheets: ${H("1 Sheet(s)")}\n`;
             r += mapBlock(rem, grid);
         }
         return r;
